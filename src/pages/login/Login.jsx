@@ -2,9 +2,14 @@ import React from "react";
 import Container from "../../components/shared/container/Container";
 import InputText from "../../components/shared/input-fields/input-text-field/InputTextField";
 import InputPasswordField from "../../components/shared/input-fields/input-password-field/InputPasswordField";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const LoginPage = () => {
+  const navigate = useNavigate();
+
+  const handleLogin = () => {
+    navigate("/");
+  };
   return (
     <div className="w-full flex justify-center">
       <Container className="py-[35px] px-[30px]">
@@ -14,7 +19,7 @@ const LoginPage = () => {
             label="Password"
             placeholder="Enter your password"
           />
-          <button className="bg-blue-500 text-white py-2 rounded-lg w-full">
+          <button onClick={handleLogin} className="bg-blue-500 text-white py-2 rounded-lg w-full">
             Sign In
           </button>
         </div>

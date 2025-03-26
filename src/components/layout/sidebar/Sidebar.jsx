@@ -1,7 +1,12 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { LogOut, Settings, ClipboardList, LayoutDashboard } from "lucide-react";
 
 const Sidebar = () => {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    navigate("/login");
+  };
   return (
     <div className="h-screen w-64 bg-[#E5E7EB] text-white flex flex-col justify-between p-4">
       {/* Logo */}
@@ -33,7 +38,7 @@ const Sidebar = () => {
       </nav>
 
       {/* Logout Button */}
-      <button className="flex items-center gap-2 p-3 bg-black rounded-md w-full">
+      <button onClick={handleLogout} className="flex items-center gap-2 p-3 bg-black rounded-md w-full">
         <LogOut size={20} /> Logout
       </button>
     </div>
