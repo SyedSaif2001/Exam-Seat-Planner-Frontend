@@ -6,6 +6,7 @@ import DashboardLayout from "../components/layout/dashboard-layout";
 import SignupPage from "../pages/sign-up/SignupPage";
 import ManageExams from "../pages/manage-exams/ManageExams";
 import NotificationPage from "../pages/notifications/Notifications";
+import StudentDashboard from "../pages/dashboard/StudentDashboard";
 // import ProfilePage from "../pages/profile/Profile";
 // import { Outlet } from "react-router-dom"; // Required for layouts
 
@@ -17,6 +18,7 @@ const AppRouter = () => {
         <Route path="/" index element={<DashboardPage />} />
         <Route path="manage-exams" element={<ManageExams />} />
         <Route path="notifications" element={<NotificationPage />} />
+        <Route path="/student-dashboard" element={<StudentDashboard />} />
       </Route>
 
       {/* Auth Layout Wrapping Multiple Pages */}

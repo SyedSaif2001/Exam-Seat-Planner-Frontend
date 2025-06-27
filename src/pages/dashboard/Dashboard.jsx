@@ -1,10 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
 import { Calendar, Users, LayoutGrid, Clock, UserCircle } from "lucide-react";
 import Container from "../../components/shared/container/Container";
-
+import Modal from "../../components/Modal";
 const DashboardPage = () => {
+  const [isOpen, setIsOpen] = useState(false);
+   const handleViewDetail = () => {
+     setIsOpen(true)
+   }
+ 
+
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <><div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-5xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Exam Seat Planner</h1>
@@ -46,7 +52,7 @@ const DashboardPage = () => {
                   120 students &nbsp; | &nbsp; 4 rooms
                 </p>
               </div>
-              <button className="text-blue-500 hover:underline">
+              <button onClick={handleViewDetail} className="text-blue-500 hover:underline">
                 View Details
               </button>
             </div>
@@ -54,6 +60,8 @@ const DashboardPage = () => {
         </Container>
       </div>
     </div>
+    { isOpen && <Modal onClose={()=>setIsOpen(false)} /> }
+    </>
   );
 };
 
