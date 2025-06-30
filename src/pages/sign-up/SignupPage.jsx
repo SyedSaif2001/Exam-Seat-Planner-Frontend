@@ -7,10 +7,14 @@ import InputPasswordField from "../../components/shared/input-fields/input-passw
 const SignupPage = () => {
   const [role, setRole] = useState("student");
   const [formData, setFormData] = useState({
-    cmsId: "",
+    cms_id: "",
+    name: "",
     email: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    faculty: "",
+    department: "",
+    batch: ""
   });
   const [error, setError] = useState("");
 
@@ -36,18 +40,20 @@ const SignupPage = () => {
       return;
     }
 
-    if (role === "student" && !formData.cmsId) {
-      setError("Please enter your CMS ID");
+    if (role === "student" && (!formData.cms_id || !formData.name || !formData.email || !formData.faculty || !formData.department || !formData.batch)) {
+      setError("Please fill in all student fields");
       return;
     }
 
-    if (role === "admin" && !formData.email) {
-      setError("Please enter your email address");
+    if (role === "admin" && (!formData.name || !formData.email || !formData.faculty || !formData.department || !formData.batch)) {
+      setError("Please fill in all admin/staff fields");
       return;
     }
 
     try {
-      // Here you would typically make an API call to register the user
+      // TODO: Integrate with backend API for registration
+      // Example placeholder:
+      // await registerUser({ ...formData, role });
       console.log("Signup data:", {
         role,
         ...formData
@@ -81,27 +87,56 @@ const SignupPage = () => {
             </select>
           </div>
 
-          {/* CMS ID Input */}
+          {/* Name Input */}
+          <InputText
+            label="Full Name"
+            placeholder="Enter your full name"
+            value={formData.name}
+            onChange={(e) => handleInputChange("name", e.target.value)}
+          />
+
+          {/* CMS ID Input (Student only) */}
           <div className={role !== "student" ? "opacity-50 pointer-events-none" : ""}>
             <InputText
               label="CMS ID"
               placeholder="Enter your CMS ID"
-              value={formData.cmsId}
-              onChange={(e) => handleInputChange("cmsId", e.target.value)}
+              value={formData.cms_id}
+              onChange={(e) => handleInputChange("cms_id", e.target.value)}
               disabled={role !== "student"}
             />
           </div>
 
           {/* Email Input */}
-          <div className={role !== "admin" ? "opacity-50 pointer-events-none" : ""}>
-            <InputText
-              label="Email Address"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
-              disabled={role !== "admin"}
-            />
-          </div>
+          <InputText
+            label="Email Address"
+            placeholder="Enter your email"
+            value={formData.email}
+            onChange={(e) => handleInputChange("email", e.target.value)}
+          />
+
+          {/* Faculty Input */}
+          <InputText
+            label="Faculty"
+            placeholder="Enter your faculty"
+            value={formData.faculty}
+            onChange={(e) => handleInputChange("faculty", e.target.value)}
+          />
+
+          {/* Department Input */}
+          <InputText
+            label="Department"
+            placeholder="Enter your department"
+            value={formData.department}
+            onChange={(e) => handleInputChange("department", e.target.value)}
+          />
+
+          {/* Batch Input */}
+          <InputText
+            label="Batch"
+            placeholder="Enter your batch"
+            value={formData.batch}
+            onChange={(e) => handleInputChange("batch", e.target.value)}
+          />
 
           {/* Password Fields */}
           <InputPasswordField

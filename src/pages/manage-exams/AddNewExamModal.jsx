@@ -65,6 +65,17 @@ const AddNewExamModal = ({ setIsModalOpen }) => {
   const [roomInvigilators, setRoomInvigilators] = useState({}); // { idx: invigilator }
   // Placeholder invigilators (simulate DB fetch)
   const [invigilators] = useState(["Dr. Ali", "Prof. Sara", "Mr. John", "Ms. Fatima"]);
+  const [examData, setExamData] = useState({
+    title: "",
+    date: "",
+    duration: "",
+    faculty: "",
+    department: "",
+    course: "",
+    batch: "",
+    total_students: ""
+  });
+  const [algorithm, setAlgorithm] = useState("matrix");
 
   const handleCloseModal = () => setIsModalOpen(false);
 
@@ -93,6 +104,10 @@ const AddNewExamModal = ({ setIsModalOpen }) => {
   const handleInvigilatorSelect = (idx, invigilator) => {
     setRoomInvigilators({ ...roomInvigilators, [idx]: invigilator });
     setInvigilatorModal({ open: false, idx: null });
+  };
+
+  const handleExamInputChange = (field, value) => {
+    setExamData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -179,6 +194,75 @@ const AddNewExamModal = ({ setIsModalOpen }) => {
               ))}
             </tbody>
           </table>
+        </div>
+        {/* Exam Details Section */}
+        <div className="mb-6">
+          <h3 className="text-md font-semibold mb-2">Exam Details</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <input
+              placeholder="Exam Title"
+              className="border border-gray-300 rounded px-3 py-2"
+              value={examData.title}
+              onChange={e => handleExamInputChange("title", e.target.value)}
+            />
+            <input
+              placeholder="Date & Time"
+              type="datetime-local"
+              className="border border-gray-300 rounded px-3 py-2"
+              value={examData.date}
+              onChange={e => handleExamInputChange("date", e.target.value)}
+            />
+            <input
+              placeholder="Duration (minutes)"
+              type="number"
+              className="border border-gray-300 rounded px-3 py-2"
+              value={examData.duration}
+              onChange={e => handleExamInputChange("duration", e.target.value)}
+            />
+            <input
+              placeholder="Faculty"
+              className="border border-gray-300 rounded px-3 py-2"
+              value={examData.faculty}
+              onChange={e => handleExamInputChange("faculty", e.target.value)}
+            />
+            <input
+              placeholder="Department"
+              className="border border-gray-300 rounded px-3 py-2"
+              value={examData.department}
+              onChange={e => handleExamInputChange("department", e.target.value)}
+            />
+            <input
+              placeholder="Course"
+              className="border border-gray-300 rounded px-3 py-2"
+              value={examData.course}
+              onChange={e => handleExamInputChange("course", e.target.value)}
+            />
+            <input
+              placeholder="Batch"
+              className="border border-gray-300 rounded px-3 py-2"
+              value={examData.batch}
+              onChange={e => handleExamInputChange("batch", e.target.value)}
+            />
+            <input
+              placeholder="Total Students"
+              type="number"
+              className="border border-gray-300 rounded px-3 py-2"
+              value={examData.total_students}
+              onChange={e => handleExamInputChange("total_students", e.target.value)}
+            />
+          </div>
+          <div className="mt-4">
+            <label className="block font-medium mb-1">Seating Algorithm</label>
+            <select
+              className="w-full border rounded px-3 py-2"
+              value={algorithm}
+              onChange={e => setAlgorithm(e.target.value)}
+            >
+              <option value="matrix">Matrix (Diagonal by group)</option>
+              <option value="parallel">Parallel (Column by group)</option>
+              <option value="random">Random</option>
+            </select>
+          </div>
         </div>
         <div className="flex gap-4 mt-8 justify-end">
           <button

@@ -16,10 +16,13 @@ const NotificationPage = () => {
     setIsModalTwoOpen(true);
   };
 
+  // TODO: Integrate with backend API to fetch notifications/email logs
+  // Example placeholder function:
+  // async function fetchNotifications() { /* ... */ }
   const emailLogs = [
-    { id: 1, title: "Email No. 1", date: "01/01/2025 19:50" },
-    { id: 2, title: "Email No. 2", date: "04/01/2025 2:15" },
-    { id: 3, title: "Email No. 3", date: "05/01/2025 13:30" },
+    { id: 1, message: "Email No. 1", send_time: "2025-01-01T19:50:00Z" },
+    { id: 2, message: "Email No. 2", send_time: "2025-04-01T02:15:00Z" },
+    { id: 3, message: "Email No. 3", send_time: "2025-05-01T13:30:00Z" },
   ];
 
   return (
@@ -44,8 +47,8 @@ const NotificationPage = () => {
                 className="flex justify-between py-4 border-b last:border-b-0"
               >
                 <div>
-                  <h3 className="text-lg font-medium">{email.title}</h3>
-                  <p className="text-gray-500">{email.date}</p>
+                  <h3 className="text-lg font-medium">{email.message}</h3>
+                  <p className="text-gray-500">{email.send_time}</p>
                 </div>
                 <button onClick={handleViewDetailTwo} className="text-blue-500 hover:underline">
                   View Details

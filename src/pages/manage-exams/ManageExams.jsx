@@ -13,33 +13,48 @@ const ManageExams = () => {
 
   const [exams, setExams] = useState([
     {
-      name: "Mid-Term Examination",
-      date: "2024-04-15 at 09:00",
-      students: 120,
+      title: "Mid-Term Examination",
+      date: "2024-04-15T09:00:00Z",
+      total_students: 120,
       rooms: 4,
+      department: "CS",
+      course: "CS101",
+      batch: "2021",
+      faculty: "Science",
+      duration: 120
     },
     {
-      name: "Final-Term Examination",
-      date: "2024-04-20 at 10:00",
-      students: 80,
+      title: "Final-Term Examination",
+      date: "2024-04-20T10:00:00Z",
+      total_students: 80,
       rooms: 3,
+      department: "CS",
+      course: "CS102",
+      batch: "2021",
+      faculty: "Science",
+      duration: 180
     },
   ]);
 
-  const handleDelete = (examName) => {
-    const updatedExams = exams.filter((exam) => exam.name !== examName);
+  const handleDelete = (examTitle) => {
+    const updatedExams = exams.filter((exam) => exam.title !== examTitle);
     setExams(updatedExams);
   };
 
   const filteredExams = exams.filter((exam) =>
-    exam.name.toLowerCase().includes(search.toLowerCase())
+    exam.title.toLowerCase().includes(search.toLowerCase())
   );
 
   const columns = [
-    { key: "name", label: "Exam Name" },
+    { key: "title", label: "Exam Title" },
     { key: "date", label: "Date & Time" },
-    { key: "students", label: "Students" },
+    { key: "total_students", label: "Total Students" },
     { key: "rooms", label: "Rooms" },
+    { key: "department", label: "Department" },
+    { key: "course", label: "Course" },
+    { key: "batch", label: "Batch" },
+    { key: "faculty", label: "Faculty" },
+    { key: "duration", label: "Duration (min)" },
     {
       key: "actions",
       label: "Actions",
@@ -48,7 +63,7 @@ const ManageExams = () => {
           <Pencil className="text-blue-500 cursor-pointer" />
           <Trash2
             className="text-red-500 cursor-pointer"
-            onClick={() => handleDelete(row.name)}
+            onClick={() => handleDelete(row.title)}
           />
         </div>
       ),

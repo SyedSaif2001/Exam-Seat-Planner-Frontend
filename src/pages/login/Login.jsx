@@ -6,24 +6,25 @@ import { Link, useNavigate } from "react-router-dom";
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const [cmsId, setCmsId] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [role, setRole] = useState("student");
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
     try {
+      // TODO: Integrate with backend API for login
+      // Example placeholder:
+      // await loginUser({ identifier, password });
       const response = await fetch("http://localhost:8080/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          cms_id: cmsId,
+          identifier: identifier,
           password: password,
-          role: role,
         }),
       });
       if (!response.ok) {
@@ -33,9 +34,9 @@ const LoginPage = () => {
       }
       const data = await response.json();
       // Save user role to localStorage or state
-      localStorage.setItem("role", data.role || role);
+      localStorage.setItem("role", data.role || "student");
       // Redirect based on role
-      if ((data.role || role) === "student") {
+      if (data.role === "student") {
         navigate("/student-dashboard");
       } else {
         navigate("/");
@@ -48,24 +49,11 @@ const LoginPage = () => {
     <div className="w-full flex justify-center">
       <Container className="py-[35px] px-[30px]">
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Login as
-            </label>
-            <select
-              value={role}
-              onChange={e => setRole(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-2"
-            >
-              <option value="student">Student</option>
-              <option value="admin">Admin / Staff</option>
-            </select>
-          </div>
           <InputText
-            label="CMS ID"
-            placeholder="Enter your cms id"
-            value={cmsId}
-            onChange={e => setCmsId(e.target.value)}
+            label="CMS ID or Email ID"
+            placeholder="Enter your CMS ID or Email ID"
+            value={identifier}
+            onChange={e => setIdentifier(e.target.value)}
             error={error}
           />
           <InputPasswordField

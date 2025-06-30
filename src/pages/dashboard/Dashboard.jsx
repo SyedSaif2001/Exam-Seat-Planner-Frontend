@@ -2,12 +2,17 @@ import React, { useState } from "react";
 import { Calendar, Users, LayoutGrid, Clock, UserCircle } from "lucide-react";
 import Container from "../../components/shared/container/Container";
 import Modal from "../../components/Modal";
+
 const DashboardPage = () => {
   const [isOpen, setIsOpen] = useState(false);
    const handleViewDetail = () => {
      setIsOpen(true)
    }
  
+  // TODO: Integrate with backend API to fetch dashboard stats and recent seating plans
+  // Example placeholder functions:
+  // async function fetchDashboardStats() { /* ... */ }
+  // async function fetchRecentSeatingPlans() { /* ... */ }
 
   return (
     <><div className="min-h-screen bg-gray-100 p-6">

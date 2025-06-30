@@ -34,12 +34,8 @@ const NotificationModalTwo = ({ onClose, email }) => {
                 <p className="text-gray-800">Admin</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">Date:</p>
-                <p className="text-gray-800">{email.date || "N/A"}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Time:</p>
-                <p className="text-gray-800">{email.time || "N/A"}</p>
+                <p className="text-sm font-medium text-gray-500">Send Time:</p>
+                <p className="text-gray-800">{email.send_time || "N/A"}</p>
               </div>
             </div>
 
