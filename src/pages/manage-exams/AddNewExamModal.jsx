@@ -112,7 +112,7 @@ const AddNewExamModal = ({ setIsModalOpen }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white shadow-lg rounded-lg p-6 w-full max-h-fit max-w-4xl relative">
+      <div className="bg-white shadow-lg rounded-lg p-6 w-full max-h-[80vh] max-w-4xl relative overflow-y-auto">
         <button
           onClick={handleCloseModal}
           className="absolute top-2 right-2 text-gray-500 hover:text-black text-2xl"
@@ -269,6 +269,10 @@ const AddNewExamModal = ({ setIsModalOpen }) => {
             onClick={handleCloseModal}
             className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400"
           >Cancel</button>
+          <button
+            onClick={handleCloseModal}
+            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+          >Close</button>
         </div>
         {/* Student List Modal */}
         <StudentListModal
