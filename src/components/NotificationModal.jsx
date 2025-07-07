@@ -1,10 +1,15 @@
 import React, { useState } from "react";
 
 const NotificationModal = ({ onClose }) => {
+  // Get faculty from localStorage user object
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const defaultFaculty = user.faculty || "";
   const [message, setMessage] = useState("");
   const [sendTime, setSendTime] = useState("");
   const [roles, setRoles] = useState([]);
-  const [faculties, setFaculties] = useState("");
+  const [faculties, setFaculties] = useState(defaultFaculty);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleRoleChange = (e) => {
     const { options } = e.target;
@@ -15,17 +20,43 @@ const NotificationModal = ({ onClose }) => {
     setRoles(selected);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Integrate with backend API to schedule notification
-    // Example payload:
-    // {
-    //   message,
-    //   send_time: sendTime,
-    //   roles,
-    //   faculties: faculties.split(',').map(f => f.trim())
-    // }
-    onClose();
+    setLoading(true);
+    setError("");
+    try {
+      const token = localStorage.getItem("token");
+      // Fix send_time format: add seconds and Z if missing
+      let formattedSendTime = sendTime;
+      if (sendTime && sendTime.length === 16) {
+        formattedSendTime = sendTime + ":00Z";
+      }
+      const response = await fetch("http://localhost:8080/api/notifications/schedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          message,
+          send_time: formattedSendTime,
+          roles,
+          faculties: faculties.split(',').map(f => f.trim()),
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        setError(data.error || "Failed to schedule notification");
+        setLoading(false);
+        return;
+      }
+      setLoading(false);
+      alert("Notification scheduled successfully!");
+      onClose();
+    } catch (err) {
+      setError("Failed to schedule notification. Please try again.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -86,19 +117,22 @@ const NotificationModal = ({ onClose }) => {
             <input
               type="text"
               className="w-full border rounded px-3 py-2"
-              placeholder="Enter faculties (comma separated)"
+              placeholder="Faculty"
               name="faculties"
               value={faculties}
               onChange={e => setFaculties(e.target.value)}
               required
+              readOnly
             />
           </div>
           <button
             type="submit"
             className="bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+            disabled={loading}
           >
-            Send Notification
+            {loading ? "Scheduling..." : "Send Notification"}
           </button>
+          {error && <div className="text-red-500 text-center mt-2">{error}</div>}
         </form>
       </div>
     </div>

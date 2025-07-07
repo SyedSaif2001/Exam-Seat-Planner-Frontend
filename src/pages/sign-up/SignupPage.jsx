@@ -17,6 +17,7 @@ const SignupPage = () => {
     batch: ""
   });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -28,42 +29,56 @@ const SignupPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
     // Basic validation
     if (!formData.password || !formData.confirmPassword) {
       setError("Please fill in all password fields");
+      setLoading(false);
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
+      setLoading(false);
       return;
     }
 
     if (role === "student" && (!formData.cms_id || !formData.name || !formData.email || !formData.faculty || !formData.department || !formData.batch)) {
       setError("Please fill in all student fields");
+      setLoading(false);
       return;
     }
 
-    if (role === "admin" && (!formData.name || !formData.email || !formData.faculty || !formData.department || !formData.batch)) {
+    if ((role === "admin" || role === "staff") && (!formData.name || !formData.email || !formData.faculty || !formData.department)) {
       setError("Please fill in all admin/staff fields");
+      setLoading(false);
       return;
     }
 
     try {
-      // TODO: Integrate with backend API for registration
-      // Example placeholder:
-      // await registerUser({ ...formData, role });
-      console.log("Signup data:", {
+      const response = await fetch("http://localhost:8080/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...formData,
         role,
-        ...formData
+        }),
       });
-      
-      // For now, just show success message
+      if (!response.ok) {
+        const data = await response.json();
+        setError(data.error || "Signup failed");
+        setLoading(false);
+        return;
+      }
+      setLoading(false);
       alert("Account created successfully! Please login.");
-      // You can redirect to login page here if needed
+      window.location.href = "/login";
     } catch (err) {
       setError("Signup failed. Please try again.");
+      setLoading(false);
     }
   };
 
@@ -78,12 +93,16 @@ const SignupPage = () => {
               Sign up as
             </label>
             <select
+              name="role"
               value={role}
               onChange={(e) => setRole(e.target.value)}
+              required
               className="w-full border border-gray-300 rounded-lg px-3 py-2"
             >
+              <option value="">Select Role</option>
               <option value="student">Student</option>
-              <option value="admin">Admin / Staff</option>
+              <option value="staff">Staff</option>
+              <option value="admin">Admin</option>
             </select>
           </div>
 
@@ -107,11 +126,11 @@ const SignupPage = () => {
           </div>
 
           {/* Email Input */}
-          <InputText
-            label="Email Address"
-            placeholder="Enter your email"
-            value={formData.email}
-            onChange={(e) => handleInputChange("email", e.target.value)}
+            <InputText
+              label="Email Address"
+              placeholder="Enter your email"
+              value={formData.email}
+              onChange={(e) => handleInputChange("email", e.target.value)}
           />
 
           {/* Faculty Input */}
@@ -131,12 +150,16 @@ const SignupPage = () => {
           />
 
           {/* Batch Input */}
-          <InputText
-            label="Batch"
-            placeholder="Enter your batch"
-            value={formData.batch}
-            onChange={(e) => handleInputChange("batch", e.target.value)}
-          />
+          <div className={role !== "student" ? "opacity-50 pointer-events-none" : ""}>
+            <InputText
+              label="Batch"
+              placeholder="Enter your batch"
+              value={formData.batch}
+              onChange={(e) => handleInputChange("batch", e.target.value)}
+              required={role === "student"}
+              style={{ display: role === "student" ? "block" : "none" }}
+            />
+          </div>
 
           {/* Password Fields */}
           <InputPasswordField
@@ -156,8 +179,8 @@ const SignupPage = () => {
           {error && <div className="text-red-500 text-center text-sm">{error}</div>}
 
           {/* Submit Button */}
-          <button type="submit" className="bg-blue-500 text-white py-2 rounded-lg w-full">
-            Sign Up
+          <button type="submit" className="bg-blue-500 text-white py-2 rounded-lg w-full" disabled={loading}>
+            {loading ? "Signing Up..." : "Sign Up"}
           </button>
         </form>
 

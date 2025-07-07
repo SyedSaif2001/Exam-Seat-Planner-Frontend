@@ -1,11 +1,15 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { LogOut, Settings, ClipboardList, LayoutDashboard } from "lucide-react";
+import { Home, LogOut, Settings, ClipboardList, LayoutDashboard, Upload, Users, Building2 } from "lucide-react";
 
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const role = localStorage.getItem("role");
 
   const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("role");
     navigate("/login");
   };
 
@@ -27,12 +31,13 @@ const Sidebar = () => {
       <nav className="flex flex-col gap-4 flex-grow">
         {/* Dashboard link: route depends on current dashboard */}
         <SidebarItem
-          to={isStudentDashboard ? "/student-dashboard" : "/"}
+          to={isStudentDashboard ? "/student-dashboard" : role === "staff" ? "/staff-dashboard" : "/dashboard"}
           icon={<LayoutDashboard size={20} />}
           text="Dashboard"
         />
-        {/* Only show these links if NOT on student dashboard */}
-        {!isStudentDashboard && (
+        
+        {/* Admin Navigation */}
+        {role === "admin" && (
           <>
             <SidebarItem
               to="/manage-exams"
@@ -40,9 +45,51 @@ const Sidebar = () => {
               text="Manage Exams"
             />
             <SidebarItem
+              to="/manage-student-lists"
+              icon={<Users size={20} />}
+              text="Student List Management"
+            />
+            <SidebarItem
+              to="/manage-rooms"
+              icon={<Building2 size={20} />}
+              text="Room Management"
+            />
+            <SidebarItem
               to="/notifications"
               icon={<Settings size={20} />}
               text="Notifications"
+            />
+          </>
+        )}
+
+        {/* Staff Navigation */}
+        {role === "staff" && (
+          <>
+            <SidebarItem
+              to="/upload-student-list"
+              icon={<Upload size={20} />}
+              text="Upload Student List"
+            />
+            <SidebarItem
+              to="/manage-rooms"
+              icon={<Building2 size={20} />}
+              text="Room Management"
+            />
+            <SidebarItem
+              to="/manage-exams"
+              icon={<ClipboardList size={20} />}
+              text="Manage Exams"
+            />
+          </>
+        )}
+
+        {/* Student Navigation */}
+        {role === "student" && (
+          <>
+            <SidebarItem
+              to="/student-dashboard"
+              icon={<Users size={20} />}
+              text="My Exams"
             />
           </>
         )}
@@ -57,10 +104,17 @@ const Sidebar = () => {
 };
 
 const SidebarItem = ({ to, icon, text }) => {
+  const location = useLocation();
+  const isActive = location.pathname === to;
+  
   return (
     <Link
       to={to}
-      className="flex items-center text-black hover:text-white gap-3 p-3 hover:bg-sky-600 rounded-lg font-bold"
+      className={`flex items-center gap-3 p-3 rounded-lg font-bold transition-colors ${
+        isActive 
+          ? "bg-sky-600 text-white" 
+          : "text-black hover:text-white hover:bg-sky-600"
+      }`}
     >
       {icon} {text}
     </Link>

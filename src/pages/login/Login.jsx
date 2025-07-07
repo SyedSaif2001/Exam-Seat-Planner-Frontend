@@ -6,65 +6,65 @@ import { Link, useNavigate } from "react-router-dom";
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const [identifier, setIdentifier] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     setError("");
     try {
-      // TODO: Integrate with backend API for login
-      // Example placeholder:
-      // await loginUser({ identifier, password });
-      const response = await fetch("http://localhost:8080/login", {
+      const res = await fetch("http://localhost:8080/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          identifier: identifier,
-          password: password,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: email, password }),
       });
-      if (!response.ok) {
-        const data = await response.json();
-        setError(data.message || "Login failed");
-        return;
-      }
-      const data = await response.json();
-      // Save user role to localStorage or state
-      localStorage.setItem("role", data.role || "student");
+      if (!res.ok) throw new Error("Invalid credentials");
+      const data = await res.json();
+      localStorage.setItem("token", data.token);
+      // Fetch user profile to get role
+      const profileRes = await fetch("http://localhost:8080/api/profile", {
+        headers: { Authorization: `Bearer ${data.token}` },
+      });
+      if (!profileRes.ok) throw new Error("Failed to fetch profile");
+      const profile = await profileRes.json();
+      console.log('Profile from backend:', profile);
+      localStorage.setItem("role", profile.role);
+      localStorage.setItem("user", JSON.stringify(profile));
       // Redirect based on role
-      if (data.role === "student") {
-        navigate("/student-dashboard");
-      } else {
-        navigate("/");
-      }
+      if (profile.role === "admin") navigate("/dashboard");
+      else if (profile.role === "staff") navigate("/staff-dashboard");
+      else if (profile.role === "student") navigate("/student-dashboard");
+      else navigate("/unauthorized");
     } catch (err) {
-      setError("Network error. Please try again.");
+      setError(err.message || "Login failed");
+    } finally {
+      setLoading(false);
     }
   };
+
   return (
     <div className="w-full flex justify-center">
       <Container className="py-[35px] px-[30px]">
-        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <InputText
-            label="CMS ID or Email ID"
-            placeholder="Enter your CMS ID or Email ID"
-            value={identifier}
-            onChange={e => setIdentifier(e.target.value)}
+            label="Email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             error={error}
           />
           <InputPasswordField
             label="Password"
             placeholder="Enter your password"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={(e) => setPassword(e.target.value)}
             error={error}
           />
-          <button type="submit" className="bg-blue-500 text-white py-2 rounded-lg w-full">
-            Sign In
+          <button type="submit" className="bg-blue-500 text-white py-2 rounded-lg w-full" disabled={loading}>
+            {loading ? "Logging In..." : "Login"}
           </button>
           {error && <div className="text-red-500 text-center">{error}</div>}
         </form>
