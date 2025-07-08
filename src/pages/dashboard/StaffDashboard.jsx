@@ -1,23 +1,21 @@
 import React, { useState, useEffect } from "react";
+import { UserCircle, X } from "lucide-react";
 import Container from "../../components/shared/container/Container";
-// import Papa from 'papaparse'; // Uncomment if using PapaParse for CSV
-import { UserCircle } from "lucide-react";
+import Modal from "../../components/Modal";
+import SeatingPlanVisualizer from "../../components/SeatingPlanVisualizer";
 
 const StaffDashboard = () => {
-  // State for student list upload
-  const [studentFile, setStudentFile] = useState(null);
-  const [parsedStudents, setParsedStudents] = useState([]);
-  const [uploadError, setUploadError] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [uploadSuccess, setUploadSuccess] = useState(false);
-
-  // State for seating plans and invigilator duties
-  const [seatingPlans, setSeatingPlans] = useState([]);
-  const [invigilatorDuties, setInvigilatorDuties] = useState([]);
-
   const [plansLoading, setPlansLoading] = useState(false);
-  const [dutiesLoading, setDutiesLoading] = useState(false);
   const [plansError, setPlansError] = useState("");
+  const [seatingPlans, setSeatingPlans] = useState([]);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [studentMap, setStudentMap] = useState({});
+  const [roomLoading, setRoomLoading] = useState(false);
+  const [exams, setExams] = useState([]);
+  const [isOpen, setIsOpen] = useState({ open: false, examTitle: "", examDate: null });
+  const [showMap, setShowMap] = useState({ open: false, plan: null, seating: [], rooms: [] });
+  const [invigilatorDuties, setInvigilatorDuties] = useState([]);
+  const [dutiesLoading, setDutiesLoading] = useState(false);
   const [dutiesError, setDutiesError] = useState("");
   const [profile, setProfile] = useState(null);
 
@@ -29,51 +27,6 @@ const StaffDashboard = () => {
   } catch {
     userName = "Staff";
   }
-
-  // Parse CSV/Excel file client-side
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    setStudentFile(file);
-    setParsedStudents([]);
-    setUploadError("");
-    setUploadSuccess(false);
-    if (!file) return;
-    // TODO: Use PapaParse or SheetJS to parse file and setParsedStudents([...])
-    // Example for CSV:
-    // Papa.parse(file, {
-    //   header: true,
-    //   complete: (results) => {
-    //     setParsedStudents(results.data.filter(row => row.cms_id && row.name && row.email));
-    //   },
-    //   error: (err) => setUploadError("Failed to parse file: " + err.message)
-    // });
-  };
-
-  const handleUpload = async () => {
-    setUploading(true);
-    setUploadError("");
-    setUploadSuccess(false);
-    try {
-      const token = localStorage.getItem("token");
-      for (const student of parsedStudents) {
-        const res = await fetch("http://localhost:8080/api/seating/students", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(student),
-        });
-        if (!res.ok) throw new Error("Failed to upload student: " + student.cms_id);
-      }
-      setUploading(false);
-      setUploadSuccess(true);
-      alert("Student list uploaded successfully!");
-    } catch (err) {
-      setUploadError(err.message || "Failed to upload student list");
-      setUploading(false);
-    }
-  };
 
   useEffect(() => {
     const fetchProfileAndPlans = async () => {
@@ -96,11 +49,23 @@ const StaffDashboard = () => {
         });
         if (!plansRes.ok) throw new Error("Failed to fetch seating plans");
         const allPlans = await plansRes.json();
+        if (!Array.isArray(allPlans)) {
+          setPlansError("Unexpected response from server.");
+          setPlansLoading(false);
+          setDutiesLoading(false);
+          return;
+        }
         // Filter plans for staff's faculty/department
         const relevantPlans = allPlans.filter(
           plan => plan.faculty === profileData.faculty || plan.department === profileData.department
         );
-        setSeatingPlans(relevantPlans);
+        // Sort by created_at/CreatedAt descending
+        relevantPlans.sort((a, b) => {
+          const dateA = new Date(a.created_at || a.CreatedAt || 0).getTime();
+          const dateB = new Date(b.created_at || b.CreatedAt || 0).getTime();
+          return dateB - dateA;
+        });
+        setSeatingPlans(relevantPlans.slice(0, 5));
         setPlansLoading(false);
         // 3. Filter invigilator duties (where staff is invigilator)
         const duties = allPlans.filter(
@@ -108,6 +73,14 @@ const StaffDashboard = () => {
         );
         setInvigilatorDuties(duties);
         setDutiesLoading(false);
+        // 4. Fetch all exams for plan details
+        const examsRes = await fetch("http://localhost:8080/api/seating/exams", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (examsRes.ok) {
+          const examsData = await examsRes.json();
+          setExams(Array.isArray(examsData) ? examsData : []);
+        }
       } catch (err) {
         setPlansError(err.message || "Failed to fetch seating plans");
         setDutiesError(err.message || "Failed to fetch invigilator duties");
@@ -117,6 +90,115 @@ const StaffDashboard = () => {
     };
     fetchProfileAndPlans();
   }, []);
+
+  const handleViewDetail = async (plan) => {
+    const token = localStorage.getItem("token");
+    const examId = plan.exam_id || plan.ExamID;
+    if (!examId) {
+      alert("Exam ID not found for this plan.");
+      return;
+    }
+    // Find the exam object for title/date
+    const examObj = exams.find(e => (e._id || e.ID) === examId);
+    const examTitle = examObj?.title || examObj?.Title || "Exam Title";
+    const examDate = examObj?.date || examObj?.Date || null;
+    setRoomLoading(true);
+    try {
+      // Fetch all rooms for this exam (to get all assigned student lists)
+      const res = await fetch(`http://localhost:8080/api/seating/exams/${examId}/rooms`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch exam rooms");
+      const examRooms = await res.json();
+      // Aggregate all students from all assigned student lists
+      let map = {};
+      examRooms.forEach(room => {
+        (room.student_lists || []).forEach(list => {
+          (list.students || []).forEach(s => {
+            if (s.student_id) map[String(s.student_id)] = s;
+            if (s.cms_id) map[String(s.cms_id)] = s;
+            if (!s.department && list.department) s.department = list.department;
+            if (!s.batch && list.batch) s.batch = list.batch;
+          });
+        });
+      });
+      setStudentMap(map);
+      setSelectedPlan(plan);
+      setIsOpen({ open: true, examTitle, examDate });
+    } catch (err) {
+      alert("Failed to load student data for this plan.");
+    } finally {
+      setRoomLoading(false);
+    }
+  };
+
+  const handleShowRoomMap = async (plan) => {
+    const token = localStorage.getItem("token");
+    const examId = plan.exam_id || plan.ExamID;
+    if (!examId) {
+      alert("Exam ID not found for this plan.");
+      return;
+    }
+    try {
+      // Fetch seating plan details (seats per room)
+      const res = await fetch(`http://localhost:8080/api/seating/plans/${plan._id || plan.ID || plan.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch seating plan details");
+      const planData = await res.json();
+      // Fetch room info for this exam
+      const roomsRes = await fetch(`http://localhost:8080/api/seating/exams/${examId}/rooms`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const roomData = roomsRes.ok ? await roomsRes.json() : [];
+      // Build studentMap from all student lists in all rooms, or fallback to all student lists for the exam
+      let map = {};
+      let foundLists = false;
+      (planData.rooms || planData.Rooms || []).forEach(room => {
+        if (room.student_lists && room.student_lists.length > 0) {
+          foundLists = true;
+          room.student_lists.forEach(list => {
+            (list.students || []).forEach(s => {
+              if (s.student_id) map[String(s.student_id)] = s;
+              if (s.cms_id) map[String(s.cms_id)] = s;
+              if (!s.department && list.department) s.department = list.department;
+              if (!s.batch && list.batch) s.batch = list.batch;
+            });
+          });
+        }
+      });
+      // Fallback: fetch all student lists for the exam if none found in planData
+      if (!foundLists) {
+        let listsRes = await fetch(`http://localhost:8080/api/seating/exams/${examId}/student-lists`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        let allLists = [];
+        if (listsRes.ok) {
+          allLists = await listsRes.json();
+        } else if (listsRes.status === 404) {
+          // Fallback: fetch all student lists globally
+          listsRes = await fetch(`http://localhost:8080/api/seating/student-lists`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (listsRes.ok) {
+            allLists = await listsRes.json();
+          }
+        }
+        (allLists || []).forEach(list => {
+          (list.students || []).forEach(s => {
+            if (s.student_id) map[String(s.student_id)] = s;
+            if (s.cms_id) map[String(s.cms_id)] = s;
+            if (!s.department && list.department) s.department = list.department;
+            if (!s.batch && list.batch) s.batch = list.batch;
+          });
+        });
+      }
+      setStudentMap(map);
+      setShowMap({ open: true, plan, seating: planData.rooms || planData.Rooms || [], rooms: roomData });
+    } catch (err) {
+      alert("Failed to load seating plan map.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
@@ -128,71 +210,52 @@ const StaffDashboard = () => {
             {userName}
           </button>
         </div>
-        <Container className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">Upload Student List</h2>
-          <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} />
-          {parsedStudents.length > 0 && (
-            <>
-              <table className="w-full border mt-4 mb-2">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="p-2 border">CMS ID</th>
-                    <th className="p-2 border">Name</th>
-                    <th className="p-2 border">Email</th>
-                    <th className="p-2 border">Department</th>
-                    <th className="p-2 border">Batch</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {parsedStudents.map((student, idx) => (
-                    <tr key={idx}>
-                      <td className="p-2 border">{student.cms_id}</td>
-                      <td className="p-2 border">{student.name}</td>
-                      <td className="p-2 border">{student.email}</td>
-                      <td className="p-2 border">{student.department}</td>
-                      <td className="p-2 border">{student.batch}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <button className="bg-blue-600 text-white px-4 py-2 rounded" onClick={handleUpload} disabled={uploading}>
-                {uploading ? "Uploading..." : "Upload to Database"}
-              </button>
-            </>
-          )}
-          {uploadSuccess && <div className="text-green-600 mt-2">Upload successful!</div>}
-          {uploadError && <div className="text-red-500 mt-2">{uploadError}</div>}
-        </Container>
-        <Container className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">Seating Plans</h2>
-          {plansLoading ? (
-            <div>Loading seating plans...</div>
-          ) : plansError ? (
-            <div className="text-red-500">{plansError}</div>
-          ) : seatingPlans.length === 0 ? (
-            <div>No seating plans to display.</div>
-          ) : (
-            <table className="w-full border mb-2">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="p-2 border">Exam</th>
-                  <th className="p-2 border">Room</th>
-                  <th className="p-2 border">Algorithm</th>
-                  <th className="p-2 border">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {seatingPlans.map((plan, idx) => (
-                  <tr key={idx}>
-                    <td className="p-2 border">{plan.exam_title || plan.examId}</td>
-                    <td className="p-2 border">{plan.room_name || plan.roomId}</td>
-                    <td className="p-2 border">{plan.algorithm}</td>
-                    <td className="p-2 border">{plan.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+        {plansLoading ? (
+          <div>Loading dashboard...</div>
+        ) : plansError ? (
+          <div className="text-red-500">{plansError}</div>
+        ) : (
+          <>
+        <Container className="py-10">
+          <h2 className="text-xl font-semibold mb-4">Recent Seating Plans</h2>
+              {!Array.isArray(seatingPlans) || seatingPlans.length === 0 ? (
+                <div>No seating plans found.</div>
+              ) : (
+                seatingPlans.map((plan, index) => {
+                  // Support both plan.rooms and plan.Rooms
+                  const rooms = plan.rooms || plan.Rooms || [];
+                  // Find exam for this plan
+                  const examObj = exams.find(e => (e._id || e.ID)?.toString() === (plan.exam_id || plan.ExamID)?.toString());
+                  const examTitle = examObj?.title || examObj?.Title || plan.exam_title || plan.ExamTitle || plan.examId || plan.ExamID || "Exam Title";
+                  let examDate = examObj?.date || examObj?.Date;
+                  if (examDate) {
+                    try {
+                      examDate = new Date(examDate).toLocaleDateString(); // Only date
+                    } catch {}
+                  }
+                  const planDate = plan.created_at || plan.CreatedAt;
+                  let planDateStr = planDate ? new Date(planDate).toLocaleDateString() : "";
+                  return (
+                    <div key={index} className="flex justify-between py-4 border-b last:border-b-0 items-center">
+                      <div>
+                        <h3 className="text-lg font-medium">{examTitle}</h3>
+                        <p className="text-gray-500">
+                          {examDate && <span>Exam Date: {examDate} | </span>}
+                          {planDateStr && <span>Plan Created: {planDateStr}</span>}
+                        </p>
+                      </div>
+                      <div className="flex gap-4 items-center">
+                        <button onClick={() => handleViewDetail(plan)} className="text-blue-500 hover:underline">
+                          View Details
+                        </button>
+                        <button onClick={() => handleShowRoomMap(plan)} className="text-green-600 hover:underline">
+                          Show Room Map
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
         </Container>
         <Container>
           <h2 className="text-xl font-semibold mb-4">Invigilator Duties</h2>
@@ -223,7 +286,23 @@ const StaffDashboard = () => {
             </table>
           )}
         </Container>
+        </>
+        )}
       </div>
+      {isOpen.open && selectedPlan && (
+        <Modal onClose={() => setIsOpen({ open: false })} plan={selectedPlan} studentMap={studentMap} loading={roomLoading} examTitle={isOpen.examTitle} examDate={isOpen.examDate} />
+      )}
+      {showMap.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto relative">
+            <button onClick={() => setShowMap({ open: false, plan: null, seating: [], rooms: [] })} className="absolute top-2 right-2 text-gray-500 hover:text-black text-2xl">
+              <X className="w-6 h-6" />
+            </button>
+            <h2 className="text-xl font-bold mb-4">Room Map: {showMap.plan?.exam_title || showMap.plan?.ExamTitle || "Exam"}</h2>
+            <SeatingPlanVisualizer roomData={showMap.seating} studentMap={studentMap} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

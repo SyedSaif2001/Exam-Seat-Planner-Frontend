@@ -186,6 +186,14 @@ const StudentListModal = ({ open, onClose, list, token }) => {
   );
 };
 
+const getCurrentUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "{}");
+  } catch {
+    return {};
+  }
+};
+
 const ManageStudentLists = () => {
   const [lists, setLists] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -212,7 +220,19 @@ const ManageStudentLists = () => {
       });
       if (!res.ok) throw new Error("Failed to fetch student lists");
       const data = await res.json();
-      setLists(Array.isArray(data) ? data : []);
+      const user = getCurrentUser();
+      const isStaff = user.role === "staff";
+      // Debug logs
+      console.log("[DEBUG] user:", user);
+      console.log("[DEBUG] fetched lists:", data);
+      console.log("[DEBUG] uploaded_by values:", (Array.isArray(data) ? data : []).map(l => l.uploaded_by));
+      if (isStaff) {
+        const filtered = (Array.isArray(data) ? data : []).filter(list => list.uploaded_by === user.email || list.uploaded_by === user._id);
+        console.log("[DEBUG] filtered lists for staff:", filtered);
+        setLists(filtered);
+      } else {
+        setLists(Array.isArray(data) ? data : []);
+      }
     } catch (err) {
       setError(err.message || "Failed to load student lists");
     } finally {
@@ -237,6 +257,7 @@ const ManageStudentLists = () => {
     setModalError("");
     try {
       const token = localStorage.getItem("token");
+      const user = getCurrentUser();
       const id = form._id || form.ID;
       let res;
       if (id) {
@@ -251,6 +272,9 @@ const ManageStudentLists = () => {
         setSuccess("Student list updated successfully");
       } else {
         // Add
+        if (user.role === "staff") {
+          form.uploaded_by = user.email || user._id;
+        }
         res = await fetch("http://localhost:8080/api/seating/student-lists", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -294,12 +318,6 @@ const ManageStudentLists = () => {
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold flex items-center gap-2"><Users /> Student List Management</h1>
-        <button
-          onClick={() => handleOpenModal()}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" /> Add Student List
-        </button>
       </div>
       {error && <div className="text-red-500 mb-4">{error}</div>}
       {success && <div className="flex items-center p-4 bg-green-50 border border-green-200 rounded-md mb-4"><CheckCircle className="w-5 h-5 text-green-400 mr-2" /> <span className="text-green-700">{success}</span></div>}

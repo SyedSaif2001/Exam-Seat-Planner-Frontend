@@ -15,6 +15,7 @@ const Sidebar = () => {
 
   // Check if we are on the student dashboard route
   const isStudentDashboard = location.pathname === "/student-dashboard";
+  const isStaff = role === "staff";
 
   return (
     <div className="h-screen w-64 bg-[#E5E7EB] text-white flex flex-col justify-between p-4">
@@ -71,14 +72,9 @@ const Sidebar = () => {
               text="Upload Student List"
             />
             <SidebarItem
-              to="/manage-rooms"
-              icon={<Building2 size={20} />}
-              text="Room Management"
-            />
-            <SidebarItem
-              to="/manage-exams"
-              icon={<ClipboardList size={20} />}
-              text="Manage Exams"
+              to="/staff-student-lists"
+              icon={<Users size={20} />}
+              text="Student List Management"
             />
           </>
         )}

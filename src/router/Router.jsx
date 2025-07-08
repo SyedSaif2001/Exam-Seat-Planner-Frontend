@@ -15,6 +15,7 @@ import ForgotPassword from "../pages/forgot-password/ForgotPassword";
 import ResetPassword from "../pages/reset-password/ResetPassword";
 import ManageRooms from "../pages/manage-rooms/ManageRooms";
 import ManageStudentLists from "../pages/manage-exams/ManageStudentLists";
+import StaffManageStudentLists from "../pages/manage-exams/StaffManageStudentLists";
 // import ProfilePage from "../pages/profile/Profile";
 // import { Outlet } from "react-router-dom"; // Required for layouts
 
@@ -65,6 +66,11 @@ const AppRouter = () => {
           <Route path="/manage-student-lists" element={
             <ProtectedRoute allowedRoles={["admin"]}>
               <ManageStudentLists />
+            </ProtectedRoute>
+          } />
+          <Route path="/staff-student-lists" element={
+            <ProtectedRoute allowedRoles={["staff"]}>
+              <StaffManageStudentLists />
             </ProtectedRoute>
           } />
           {/* Staff routes */}
