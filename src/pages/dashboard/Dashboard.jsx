@@ -59,7 +59,7 @@ const DashboardPage = () => {
       const token = localStorage.getItem("token");
 
       try {
-        const [examsRes, studentsRes, roomsRes, plansRes] = await Promise.all([
+        const [examsRes, studentsRes, roomsRes, plansRes, listsRes] = await Promise.all([
           fetch("http://localhost:8080/api/seating/exams", {
             headers: { Authorization: `Bearer ${token}` },
           }),
@@ -72,26 +72,32 @@ const DashboardPage = () => {
           fetch("http://localhost:8080/api/seating/plans", {
             headers: { Authorization: `Bearer ${token}` },
           }),
+          fetch("http://localhost:8080/api/seating/student-lists", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
 
-        if (!examsRes.ok || !studentsRes.ok || !roomsRes.ok || !plansRes.ok) {
+        if (!examsRes.ok || !studentsRes.ok || !roomsRes.ok || !plansRes.ok || !listsRes.ok) {
           throw new Error("Could not load dashboard data.");
         }
 
-        const [examsData, studentsData, roomsData, plansData] = await Promise.all([
+        const [examsData, studentsData, roomsData, plansData, listsData] = await Promise.all([
           examsRes.json(),
           studentsRes.json(),
           roomsRes.json(),
           plansRes.json(),
+          listsRes.json(),
         ]);
 
         setExams(Array.isArray(examsData) ? examsData : []);
 
-        // Deduplicate students by ID
+        // Deduplicate students by ID from all student lists
         const uniqueStudents = {};
-        studentsData.forEach((student) => {
-          const id = student.student_id || student.StudentID;
-          if (id) uniqueStudents[id] = student;
+        (listsData || []).forEach(list => {
+          (list.students || []).forEach(student => {
+            const id = student.student_id || student.StudentID;
+            if (id) uniqueStudents[id] = student;
+          });
         });
 
         const upcomingExams = (examsData || []).filter((exam) => {

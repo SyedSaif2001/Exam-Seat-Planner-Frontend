@@ -548,7 +548,7 @@ const AddNewExamModal = ({ setIsModalOpen }) => {
       .join(", ");
   };
 
-  // Calculate unique students and total capacity
+  // Always recalculate unique students from selectedRooms and studentLists
   const getUniqueStudentCount = () => {
     const allStudentIds = new Set();
     selectedRooms.forEach(sel => {
@@ -735,7 +735,20 @@ const AddNewExamModal = ({ setIsModalOpen }) => {
             </div>
             {/* Table of selected rooms and assignments */}
             {selectedRooms.length > 0 && (
-              <div>
+              <>
+                {/* Student Count Card */}
+                <div className="mb-4 flex gap-4">
+                  <div className="bg-white rounded-lg shadow p-4 flex flex-col items-center justify-center border border-gray-200 min-w-[180px]">
+                    <span className="text-gray-700">Total Students</span>
+                    <span className="font-bold text-2xl">{uniqueStudentCount}</span>
+                    <Users className="text-green-500 mt-1" />
+                  </div>
+                  <div className="bg-white rounded-lg shadow p-4 flex flex-col items-center justify-center border border-gray-200 min-w-[180px]">
+                    <span className="text-gray-700">Total Capacity</span>
+                    <span className="font-bold text-2xl">{totalCapacity}</span>
+                    <Building className="text-blue-500 mt-1" />
+                  </div>
+                </div>
                 <h3 className="text-lg font-semibold mb-4">Selected Rooms & Assignments</h3>
                 <div className="border rounded-lg overflow-hidden">
                   <table className="min-w-full divide-y divide-gray-200">
@@ -778,7 +791,7 @@ const AddNewExamModal = ({ setIsModalOpen }) => {
                 {uniqueStudentCount > totalCapacity && (
                   <div className="text-red-500 mt-2">total students exceed total room capacity</div>
                 )}
-              </div>
+              </>
             )}
             {error && <div className="text-red-500">{error}</div>}
             {success && (
