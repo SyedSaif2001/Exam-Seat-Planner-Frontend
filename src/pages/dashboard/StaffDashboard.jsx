@@ -29,7 +29,6 @@ const StaffDashboard = () => {
     userName = "Staff";
   }
 
-  // Fetch profile, plans, duties, exams
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoadingPlans(true);
@@ -41,31 +40,28 @@ const StaffDashboard = () => {
         const token = localStorage.getItem("token");
         if (!token) throw new Error("No token found.");
 
-        // 1. Fetch profile
         const profileRes = await fetch("http://localhost:8080/api/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!profileRes.ok) throw new Error("Profile fetch failed");
         const profileData = await profileRes.json();
         setProfile(profileData);
-        // Update localStorage user object with _id from profile
+
         try {
           const user = JSON.parse(localStorage.getItem("user") || "{}");
           if (profileData._id) user._id = profileData._id;
           localStorage.setItem("user", JSON.stringify(user));
         } catch {}
-        // 2. Fetch all seating plans
+
         const plansRes = await fetch("http://localhost:8080/api/seating/plans", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!plansRes.ok) throw new Error("Seating plans fetch failed");
         const allPlans = await plansRes.json();
 
-        // 3. Filter plans for this staff
         const relevantPlans = (allPlans || []).filter(plan =>
           plan.faculty === profileData.faculty || plan.department === profileData.department
         );
-        // Sort by created_at/CreatedAt/date descending
         relevantPlans.sort((a, b) => {
           const dateA = new Date(a.created_at || a.CreatedAt || a.date || a.Date || 0).getTime();
           const dateB = new Date(b.created_at || b.CreatedAt || b.date || b.Date || 0).getTime();
@@ -73,8 +69,8 @@ const StaffDashboard = () => {
         });
 
         setSeatingPlans(relevantPlans.slice(0, 5));
-        setPlansLoading(false);
-        // 3. Fetch all exams for plan details FIRST
+        setLoadingPlans(false);
+
         const examsRes = await fetch("http://localhost:8080/api/seating/exams", {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -83,40 +79,28 @@ const StaffDashboard = () => {
           allExams = await examsRes.json();
           setExams(Array.isArray(allExams) ? allExams : []);
         }
-        
-        // 4. Filter invigilator duties (where staff is invigilator)
-        // Now: match staff user ID against room.invigilators (array of user IDs)
+
         let duties = [];
         let staffId = undefined;
         try {
           const user = JSON.parse(localStorage.getItem("user") || "{}");
           staffId = user._id || user.id;
-        } catch {
-          staffId = undefined;
-        }
-        console.log("[DEBUG] staffId (from localStorage):", staffId);
-        console.log("[DEBUG] allExams for matching:", allExams);
-        
+        } catch {}
+
         allPlans.forEach(plan => {
           const rooms = plan.rooms || plan.Rooms || [];
           rooms.forEach(room => {
-            console.log("[DEBUG] Checking room.invigilators:", room.invigilators, "for staffId:", staffId);
             if (Array.isArray(room.invigilators) && staffId && room.invigilators.includes(staffId)) {
-              // Find exam for this plan - try multiple matching strategies
               const planExamId = plan.exam_id || plan.ExamID;
-              console.log("[DEBUG] Looking for exam with ID:", planExamId);
-              
               let examObj = allExams.find(e => (e._id || e.ID)?.toString() === planExamId?.toString());
               if (!examObj) {
-                // Try matching any field value
                 examObj = allExams.find(e => Object.values(e).map(v => v?.toString()).includes(planExamId?.toString()));
               }
-              console.log("[DEBUG] Found exam object:", examObj);
-              
+
               const examTitle = examObj?.title || examObj?.Title || plan.exam_title || plan.ExamTitle || plan.examId || plan.ExamID || "Exam Title";
               let examDate = examObj?.date || examObj?.Date;
               if (examDate) {
-                try { 
+                try {
                   const d = new Date(examDate);
                   if (!isNaN(d.getTime())) {
                     examDate = d.toLocaleString();
@@ -127,7 +111,7 @@ const StaffDashboard = () => {
                   examDate = examDate.toString();
                 }
               }
-              
+
               duties.push({
                 exam_title: examTitle,
                 room_name: room.name || room.room_name || room.RoomName || room.Room || "Room",
@@ -136,9 +120,7 @@ const StaffDashboard = () => {
             }
           });
         });
-        console.log("[DEBUG] duties found:", duties);
-        
-        // Sort invigilator duties by exam date descending (newest first)
+
         const sortedDuties = [...duties].sort((a, b) => {
           const getTime = (obj) => {
             if (obj.exam_date) {
@@ -153,9 +135,10 @@ const StaffDashboard = () => {
           };
           return getTime(b) - getTime(a);
         });
-        
+
         setInvigilatorDuties(sortedDuties);
-        setDutiesLoading(false);
+        setLoadingDuties(false);
+
       } catch (err) {
         setPlansError(err.message);
         setDutiesError(err.message);
@@ -167,7 +150,6 @@ const StaffDashboard = () => {
     fetchDashboardData();
   }, []);
 
-  // View plan details handler
   const handleViewDetails = async (plan) => {
     const token = localStorage.getItem("token");
     const examId = plan.exam_id || plan.ExamID;
@@ -211,7 +193,6 @@ const StaffDashboard = () => {
     }
   };
 
-  // Show room map handler
   const handleShowMap = async (plan) => {
     const token = localStorage.getItem("token");
     const examId = plan.exam_id || plan.ExamID;
@@ -288,34 +269,27 @@ const StaffDashboard = () => {
           <div className="text-red-500">{plansError}</div>
         ) : (
           <>
-        <Container className="py-10">
-          <h2 className="text-xl font-semibold mb-4">Recent Seating Plans</h2>
+            <Container className="py-10">
+              <h2 className="text-xl font-semibold mb-4">Recent Seating Plans</h2>
               {!Array.isArray(seatingPlans) || seatingPlans.length === 0 ? (
                 <div>No seating plans found.</div>
               ) : exams.length === 0 ? (
                 <div>Loading exam details...</div>
               ) : (
                 seatingPlans.map((plan, index) => {
-                  // Support both plan.rooms and plan.Rooms
-                  const rooms = plan.rooms || plan.Rooms || [];
-                  // Find exam for this plan - try multiple matching strategies
                   const planExamId = plan.exam_id || plan.ExamID;
-                  console.log("[DEBUG] Recent plans - Looking for exam with ID:", planExamId);
-                  
                   let examObj = exams.find(e => (e._id || e.ID)?.toString() === planExamId?.toString());
                   if (!examObj) {
-                    // Try matching any field value
                     examObj = exams.find(e => Object.values(e).map(v => v?.toString()).includes(planExamId?.toString()));
                   }
-                  console.log("[DEBUG] Recent plans - Found exam object:", examObj);
-                  
-                  const examTitle = examObj?.title || examObj?.Title || plan.exam_title || plan.ExamTitle || plan.examId || plan.ExamID || "Exam Title";
+
+                  const examTitle = examObj?.title || examObj?.Title || plan.exam_title || plan.ExamTitle || "Exam Title";
                   let examDate = examObj?.date || examObj?.Date;
                   if (examDate) {
                     try {
                       const d = new Date(examDate);
                       if (!isNaN(d.getTime())) {
-                        examDate = d.toLocaleString(); // Date and time
+                        examDate = d.toLocaleString();
                       } else {
                         examDate = examDate.toString();
                       }
@@ -325,6 +299,7 @@ const StaffDashboard = () => {
                   }
                   const planDate = plan.created_at || plan.CreatedAt;
                   let planDateStr = planDate ? new Date(planDate).toLocaleDateString() : "";
+
                   return (
                     <div key={index} className="flex justify-between py-4 border-b last:border-b-0 items-center">
                       <div>
@@ -335,10 +310,10 @@ const StaffDashboard = () => {
                         </p>
                       </div>
                       <div className="flex gap-4 items-center">
-                        <button onClick={() => handleViewDetail(plan)} className="text-blue-500 hover:underline">
+                        <button onClick={() => handleViewDetails(plan)} className="text-blue-500 hover:underline">
                           View Details
                         </button>
-                        <button onClick={() => handleShowRoomMap(plan)} className="text-green-600 hover:underline">
+                        <button onClick={() => handleShowMap(plan)} className="text-green-600 hover:underline">
                           Show Room Map
                         </button>
                       </div>
@@ -346,38 +321,41 @@ const StaffDashboard = () => {
                   );
                 })
               )}
-        </Container>
-        <Container>
-          <h2 className="text-xl font-semibold mb-4">Invigilator Duties</h2>
-          {loadingDuties ? (
-            <div>Loading duties...</div>
-          ) : dutiesError ? (
-            <div className="text-red-500">{dutiesError}</div>
-          ) : exams.length === 0 ? (
-            <div>Loading exam details...</div>
-          ) : invigilatorDuties.length === 0 ? (
-            <div>No invigilator duties assigned.</div>
-          ) : (
-            <table className="w-full border mb-2">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="p-2 border">Exam</th>
-                  <th className="p-2 border">Room</th>
-                  <th className="p-2 border">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invigilatorDuties.map((duty, i) => (
-                  <tr key={i}>
-                    <td className="p-2 border">{duty.exam_title || duty.examId}</td>
-                    <td className="p-2 border">{duty.room_name || duty.roomId}</td>
-                    <td className="p-2 border">{duty.exam_date || duty.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Container>
+            </Container>
+
+            <Container>
+              <h2 className="text-xl font-semibold mb-4">Invigilator Duties</h2>
+              {loadingDuties ? (
+                <div>Loading duties...</div>
+              ) : dutiesError ? (
+                <div className="text-red-500">{dutiesError}</div>
+              ) : exams.length === 0 ? (
+                <div>Loading exam details...</div>
+              ) : invigilatorDuties.length === 0 ? (
+                <div>No invigilator duties assigned.</div>
+              ) : (
+                <table className="w-full border mb-2">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="p-2 border">Exam</th>
+                      <th className="p-2 border">Room</th>
+                      <th className="p-2 border">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invigilatorDuties.map((duty, i) => (
+                      <tr key={i}>
+                        <td className="p-2 border">{duty.exam_title || duty.examId}</td>
+                        <td className="p-2 border">{duty.room_name || duty.roomId}</td>
+                        <td className="p-2 border">{duty.exam_date || duty.date}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Container>
+          </>
+        )}
       </div>
 
       {viewModal.open && (
@@ -394,17 +372,16 @@ const StaffDashboard = () => {
       {roomMap.open && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto relative">
-            <button onClick={() => setRoomMap({ open: false, plan: null, seating: [], rooms: [] })}
-              className="absolute top-2 right-2 text-gray-500 hover:text-black">
+            <button
+              onClick={() => setRoomMap({ open: false, plan: null, seating: [], rooms: [] })}
+              className="absolute top-2 right-2 text-gray-500 hover:text-black"
+            >
               <X className="w-6 h-6" />
             </button>
             <h2 className="text-xl font-bold mb-4">
               Room Map: {roomMap.plan?.exam_title || "Exam"}
             </h2>
-            <SeatingPlanVisualizer
-              roomData={roomMap.seating}
-              studentMap={studentMap}
-            />
+            <SeatingPlanVisualizer roomData={roomMap.seating} studentMap={studentMap} />
           </div>
         </div>
       )}
