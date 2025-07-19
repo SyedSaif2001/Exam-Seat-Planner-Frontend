@@ -5,21 +5,22 @@ import Modal from "../../components/Modal";
 import SeatingPlanVisualizer from "../../components/SeatingPlanVisualizer";
 
 const StaffDashboard = () => {
-  const [plansLoading, setPlansLoading] = useState(false);
+  const [loadingPlans, setLoadingPlans] = useState(false);
+  const [loadingDuties, setLoadingDuties] = useState(false);
   const [plansError, setPlansError] = useState("");
-  const [seatingPlans, setSeatingPlans] = useState([]);
-  const [selectedPlan, setSelectedPlan] = useState(null);
-  const [studentMap, setStudentMap] = useState({});
-  const [roomLoading, setRoomLoading] = useState(false);
-  const [exams, setExams] = useState([]);
-  const [isOpen, setIsOpen] = useState({ open: false, examTitle: "", examDate: null });
-  const [showMap, setShowMap] = useState({ open: false, plan: null, seating: [], rooms: [] });
-  const [invigilatorDuties, setInvigilatorDuties] = useState([]);
-  const [dutiesLoading, setDutiesLoading] = useState(false);
   const [dutiesError, setDutiesError] = useState("");
+  const [seatingPlans, setSeatingPlans] = useState([]);
+  const [invigilatorDuties, setInvigilatorDuties] = useState([]);
+  const [exams, setExams] = useState([]);
+  const [studentMap, setStudentMap] = useState({});
   const [profile, setProfile] = useState(null);
 
-  // Get user name from localStorage
+  const [viewModal, setViewModal] = useState({ open: false, plan: null, examTitle: "", examDate: null });
+  const [roomMap, setRoomMap] = useState({ open: false, plan: null, seating: [], rooms: [] });
+
+  const [loadingRoom, setLoadingRoom] = useState(false);
+
+  // Get staff name from localStorage
   let userName = "Staff";
   try {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -28,19 +29,23 @@ const StaffDashboard = () => {
     userName = "Staff";
   }
 
+  // Fetch profile, plans, duties, exams
   useEffect(() => {
-    const fetchProfileAndPlans = async () => {
-      setPlansLoading(true);
-      setDutiesLoading(true);
+    const fetchDashboardData = async () => {
+      setLoadingPlans(true);
+      setLoadingDuties(true);
       setPlansError("");
       setDutiesError("");
+
       try {
         const token = localStorage.getItem("token");
-        // 1. Fetch staff profile
+        if (!token) throw new Error("No token found.");
+
+        // 1. Fetch profile
         const profileRes = await fetch("http://localhost:8080/api/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!profileRes.ok) throw new Error("Failed to fetch profile");
+        if (!profileRes.ok) throw new Error("Profile fetch failed");
         const profileData = await profileRes.json();
         setProfile(profileData);
         // Update localStorage user object with _id from profile
@@ -53,17 +58,12 @@ const StaffDashboard = () => {
         const plansRes = await fetch("http://localhost:8080/api/seating/plans", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!plansRes.ok) throw new Error("Failed to fetch seating plans");
+        if (!plansRes.ok) throw new Error("Seating plans fetch failed");
         const allPlans = await plansRes.json();
-        if (!Array.isArray(allPlans)) {
-          setPlansError("Unexpected response from server.");
-          setPlansLoading(false);
-          setDutiesLoading(false);
-          return;
-        }
-        // Filter plans for staff's faculty/department
-        const relevantPlans = allPlans.filter(
-          plan => plan.faculty === profileData.faculty || plan.department === profileData.department
+
+        // 3. Filter plans for this staff
+        const relevantPlans = (allPlans || []).filter(plan =>
+          plan.faculty === profileData.faculty || plan.department === profileData.department
         );
         // Sort by created_at/CreatedAt/date descending
         relevantPlans.sort((a, b) => {
@@ -71,6 +71,7 @@ const StaffDashboard = () => {
           const dateB = new Date(b.created_at || b.CreatedAt || b.date || b.Date || 0).getTime();
           return dateB - dateA;
         });
+
         setSeatingPlans(relevantPlans.slice(0, 5));
         setPlansLoading(false);
         // 3. Fetch all exams for plan details FIRST
@@ -156,37 +157,41 @@ const StaffDashboard = () => {
         setInvigilatorDuties(sortedDuties);
         setDutiesLoading(false);
       } catch (err) {
-        setPlansError(err.message || "Failed to fetch seating plans");
-        setDutiesError(err.message || "Failed to fetch invigilator duties");
-        setPlansLoading(false);
-        setDutiesLoading(false);
+        setPlansError(err.message);
+        setDutiesError(err.message);
+        setLoadingPlans(false);
+        setLoadingDuties(false);
       }
     };
-    fetchProfileAndPlans();
+
+    fetchDashboardData();
   }, []);
 
-  const handleViewDetail = async (plan) => {
+  // View plan details handler
+  const handleViewDetails = async (plan) => {
     const token = localStorage.getItem("token");
     const examId = plan.exam_id || plan.ExamID;
     if (!examId) {
-      alert("Exam ID not found for this plan.");
+      alert("No exam ID found.");
       return;
     }
-    // Find the exam object for title/date
-    const examObj = exams.find(e => (e._id || e.ID) === examId);
-    const examTitle = examObj?.title || examObj?.Title || "Exam Title";
-    const examDate = examObj?.date || examObj?.Date || null;
-    setRoomLoading(true);
+
+    const exam = exams.find(e => (e._id || e.ID) === examId);
+    const examTitle = exam?.title || exam?.Title || "Exam";
+    const examDate = exam?.date || exam?.Date || null;
+
+    setLoadingRoom(true);
+
     try {
-      // Fetch all rooms for this exam (to get all assigned student lists)
       const res = await fetch(`http://localhost:8080/api/seating/exams/${examId}/rooms`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Failed to fetch exam rooms");
-      const examRooms = await res.json();
-      // Aggregate all students from all assigned student lists
-      let map = {};
-      examRooms.forEach(room => {
+      if (!res.ok) throw new Error("Failed to load exam rooms");
+
+      const rooms = await res.json();
+      const map = {};
+
+      rooms.forEach(room => {
         (room.student_lists || []).forEach(list => {
           (list.students || []).forEach(s => {
             if (s.student_id) map[String(s.student_id)] = s;
@@ -196,69 +201,59 @@ const StaffDashboard = () => {
           });
         });
       });
+
       setStudentMap(map);
-      setSelectedPlan(plan);
-      setIsOpen({ open: true, examTitle, examDate });
-    } catch (err) {
-      alert("Failed to load student data for this plan.");
+      setViewModal({ open: true, plan, examTitle, examDate });
+    } catch {
+      alert("Failed to load plan details.");
     } finally {
-      setRoomLoading(false);
+      setLoadingRoom(false);
     }
   };
 
-  const handleShowRoomMap = async (plan) => {
+  // Show room map handler
+  const handleShowMap = async (plan) => {
     const token = localStorage.getItem("token");
     const examId = plan.exam_id || plan.ExamID;
     if (!examId) {
-      alert("Exam ID not found for this plan.");
+      alert("No exam ID found.");
       return;
     }
+
     try {
-      // Fetch seating plan details (seats per room)
-      const res = await fetch(`http://localhost:8080/api/seating/plans/${plan._id || plan.ID || plan.id}`, {
+      const planRes = await fetch(`http://localhost:8080/api/seating/plans/${plan._id || plan.ID}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Failed to fetch seating plan details");
-      const planData = await res.json();
-      // Fetch room info for this exam
-      const roomsRes = await fetch(`http://localhost:8080/api/seating/exams/${examId}/rooms`, {
+      if (!planRes.ok) throw new Error("Plan fetch failed");
+      const planData = await planRes.json();
+
+      const roomRes = await fetch(`http://localhost:8080/api/seating/exams/${examId}/rooms`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const roomData = roomsRes.ok ? await roomsRes.json() : [];
-      // Build studentMap from all student lists in all rooms, or fallback to all student lists for the exam
-      let map = {};
+      const roomData = roomRes.ok ? await roomRes.json() : [];
+
+      const map = {};
       let foundLists = false;
-      (planData.rooms || planData.Rooms || []).forEach(room => {
-        if (room.student_lists && room.student_lists.length > 0) {
+
+      (planData.rooms || []).forEach(room => {
+        (room.student_lists || []).forEach(list => {
           foundLists = true;
-          room.student_lists.forEach(list => {
-            (list.students || []).forEach(s => {
-              if (s.student_id) map[String(s.student_id)] = s;
-              if (s.cms_id) map[String(s.cms_id)] = s;
-              if (!s.department && list.department) s.department = list.department;
-              if (!s.batch && list.batch) s.batch = list.batch;
-            });
+          (list.students || []).forEach(s => {
+            if (s.student_id) map[String(s.student_id)] = s;
+            if (s.cms_id) map[String(s.cms_id)] = s;
+            if (!s.department && list.department) s.department = list.department;
+            if (!s.batch && list.batch) s.batch = list.batch;
           });
-        }
+        });
       });
-      // Fallback: fetch all student lists for the exam if none found in planData
+
       if (!foundLists) {
-        let listsRes = await fetch(`http://localhost:8080/api/seating/exams/${examId}/student-lists`, {
+        const listsRes = await fetch(`http://localhost:8080/api/seating/exams/${examId}/student-lists`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        let allLists = [];
-        if (listsRes.ok) {
-          allLists = await listsRes.json();
-        } else if (listsRes.status === 404) {
-          // Fallback: fetch all student lists globally
-          listsRes = await fetch(`http://localhost:8080/api/seating/student-lists`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (listsRes.ok) {
-            allLists = await listsRes.json();
-          }
-        }
-        (allLists || []).forEach(list => {
+
+        const lists = listsRes.ok ? await listsRes.json() : [];
+        lists.forEach(list => {
           (list.students || []).forEach(s => {
             if (s.student_id) map[String(s.student_id)] = s;
             if (s.cms_id) map[String(s.cms_id)] = s;
@@ -267,10 +262,12 @@ const StaffDashboard = () => {
           });
         });
       }
+
       setStudentMap(map);
-      setShowMap({ open: true, plan, seating: planData.rooms || planData.Rooms || [], rooms: roomData });
-    } catch (err) {
-      alert("Failed to load seating plan map.");
+      setRoomMap({ open: true, plan, seating: planData.rooms || [], rooms: roomData });
+
+    } catch {
+      alert("Failed to load map.");
     }
   };
 
@@ -284,8 +281,9 @@ const StaffDashboard = () => {
             {userName}
           </button>
         </div>
-        {plansLoading ? (
-          <div>Loading dashboard...</div>
+
+        {loadingPlans ? (
+          <div>Loading plans...</div>
         ) : plansError ? (
           <div className="text-red-500">{plansError}</div>
         ) : (
@@ -351,14 +349,14 @@ const StaffDashboard = () => {
         </Container>
         <Container>
           <h2 className="text-xl font-semibold mb-4">Invigilator Duties</h2>
-          {dutiesLoading ? (
-            <div>Loading invigilator duties...</div>
+          {loadingDuties ? (
+            <div>Loading duties...</div>
           ) : dutiesError ? (
             <div className="text-red-500">{dutiesError}</div>
           ) : exams.length === 0 ? (
             <div>Loading exam details...</div>
           ) : invigilatorDuties.length === 0 ? (
-            <div>No invigilator duties to display.</div>
+            <div>No invigilator duties assigned.</div>
           ) : (
             <table className="w-full border mb-2">
               <thead>
@@ -369,8 +367,8 @@ const StaffDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {invigilatorDuties.map((duty, idx) => (
-                  <tr key={idx}>
+                {invigilatorDuties.map((duty, i) => (
+                  <tr key={i}>
                     <td className="p-2 border">{duty.exam_title || duty.examId}</td>
                     <td className="p-2 border">{duty.room_name || duty.roomId}</td>
                     <td className="p-2 border">{duty.exam_date || duty.date}</td>
@@ -380,20 +378,33 @@ const StaffDashboard = () => {
             </table>
           )}
         </Container>
-        </>
-        )}
       </div>
-      {isOpen.open && selectedPlan && (
-        <Modal onClose={() => setIsOpen({ open: false })} plan={selectedPlan} studentMap={studentMap} loading={roomLoading} examTitle={isOpen.examTitle} examDate={isOpen.examDate} />
+
+      {viewModal.open && (
+        <Modal
+          onClose={() => setViewModal({ open: false })}
+          plan={viewModal.plan}
+          studentMap={studentMap}
+          loading={loadingRoom}
+          examTitle={viewModal.examTitle}
+          examDate={viewModal.examDate}
+        />
       )}
-      {showMap.open && (
+
+      {roomMap.open && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto relative">
-            <button onClick={() => setShowMap({ open: false, plan: null, seating: [], rooms: [] })} className="absolute top-2 right-2 text-gray-500 hover:text-black text-2xl">
+            <button onClick={() => setRoomMap({ open: false, plan: null, seating: [], rooms: [] })}
+              className="absolute top-2 right-2 text-gray-500 hover:text-black">
               <X className="w-6 h-6" />
             </button>
-            <h2 className="text-xl font-bold mb-4">Room Map: {showMap.plan?.exam_title || showMap.plan?.ExamTitle || "Exam"}</h2>
-            <SeatingPlanVisualizer roomData={showMap.seating} studentMap={studentMap} />
+            <h2 className="text-xl font-bold mb-4">
+              Room Map: {roomMap.plan?.exam_title || "Exam"}
+            </h2>
+            <SeatingPlanVisualizer
+              roomData={roomMap.seating}
+              studentMap={studentMap}
+            />
           </div>
         </div>
       )}
@@ -401,4 +412,4 @@ const StaffDashboard = () => {
   );
 };
 
-export default StaffDashboard; 
+export default StaffDashboard;
