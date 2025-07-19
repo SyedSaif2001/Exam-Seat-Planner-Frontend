@@ -23,10 +23,16 @@ const Notifications = () => {
         });
         if (!res.ok) throw new Error("Failed to fetch notifications");
         const data = await res.json();
-        setNotifications(data);
-        setLoading(false);
+        // Sort newest first by created_at, CreatedAt, or _id/ID
+        const sorted = [...data].sort((a, b) => {
+          const dateA = new Date(a.created_at || a.CreatedAt || a._id || a.ID);
+          const dateB = new Date(b.created_at || b.CreatedAt || b._id || b.ID);
+          return dateB - dateA;
+        });
+        setNotifications(sorted);
       } catch (err) {
         setError(err.message || "Failed to load notifications");
+      } finally {
         setLoading(false);
       }
     };
