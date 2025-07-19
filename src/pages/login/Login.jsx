@@ -68,6 +68,9 @@ const LoginPage = () => {
           </button>
           {error && <div className="text-red-500 text-center">{error}</div>}
         </form>
+        <div className="flex justify-end mt-2">
+          <Link to="/forgot-password" className="text-sm text-blue-500 hover:underline">Forgot password?</Link>
+        </div>
         <div className="flex justify-center gap-2 mt-4">
           <p className="">Don't have an account?</p>
           <Link

@@ -24,7 +24,24 @@ const ManageRooms = () => {
       });
       if (!res.ok) throw new Error("Failed to fetch rooms");
       const data = await res.json();
-      setRooms(Array.isArray(data) ? data : []);
+      // Sort newest first by created_at, CreatedAt, or _id/ID (ObjectID timestamp)
+      const sorted = [...data].sort((a, b) => {
+        const getTime = (obj) => {
+          if (obj.created_at || obj.CreatedAt) {
+            return new Date(obj.created_at || obj.CreatedAt).getTime();
+          }
+          // If _id is a MongoDB ObjectID string, extract timestamp
+          if (obj._id && typeof obj._id === "string" && obj._id.length === 24) {
+            return parseInt(obj._id.substring(0, 8), 16) * 1000;
+          }
+          if (obj.ID && typeof obj.ID === "string" && obj.ID.length === 24) {
+            return parseInt(obj.ID.substring(0, 8), 16) * 1000;
+          }
+          return 0;
+        };
+        return getTime(b) - getTime(a);
+      });
+      setRooms(sorted);
     } catch (err) {
       setError(err.message || "Failed to load rooms");
     } finally {

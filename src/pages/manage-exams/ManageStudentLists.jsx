@@ -222,17 +222,17 @@ const ManageStudentLists = () => {
       const data = await res.json();
       const user = getCurrentUser();
       const isStaff = user.role === "staff";
-      // Debug logs
-      console.log("[DEBUG] user:", user);
-      console.log("[DEBUG] fetched lists:", data);
-      console.log("[DEBUG] uploaded_by values:", (Array.isArray(data) ? data : []).map(l => l.uploaded_by));
+      let listsToShow = Array.isArray(data) ? data : [];
       if (isStaff) {
-        const filtered = (Array.isArray(data) ? data : []).filter(list => list.uploaded_by === user.email || list.uploaded_by === user._id);
-        console.log("[DEBUG] filtered lists for staff:", filtered);
-        setLists(filtered);
-      } else {
-        setLists(Array.isArray(data) ? data : []);
+        listsToShow = listsToShow.filter(list => list.uploaded_by === user.email || list.uploaded_by === user._id);
       }
+      // Sort newest first by created_at, CreatedAt, or _id/ID
+      listsToShow.sort((a, b) => {
+        const dateA = new Date(a.created_at || a.CreatedAt || a._id || a.ID);
+        const dateB = new Date(b.created_at || b.CreatedAt || b._id || b.ID);
+        return dateB - dateA;
+      });
+      setLists(listsToShow);
     } catch (err) {
       setError(err.message || "Failed to load student lists");
     } finally {

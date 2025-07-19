@@ -103,7 +103,7 @@ const SeatingPlanVisualizer = ({ seatingPlan = [], roomData = [], studentMap = {
                         transition: 'box-shadow 0.2s',
                       }}
                     >
-                      {student ? student.name.charAt(0).toUpperCase() : ''}
+                      {student ? `${rowIdx + 1},${colIdx + 1}` : ''}
                     </div>
                   );
                 })

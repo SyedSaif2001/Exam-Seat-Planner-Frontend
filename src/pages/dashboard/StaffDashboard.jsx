@@ -43,6 +43,12 @@ const StaffDashboard = () => {
         if (!profileRes.ok) throw new Error("Failed to fetch profile");
         const profileData = await profileRes.json();
         setProfile(profileData);
+        // Update localStorage user object with _id from profile
+        try {
+          const user = JSON.parse(localStorage.getItem("user") || "{}");
+          if (profileData._id) user._id = profileData._id;
+          localStorage.setItem("user", JSON.stringify(user));
+        } catch {}
         // 2. Fetch all seating plans
         const plansRes = await fetch("http://localhost:8080/api/seating/plans", {
           headers: { Authorization: `Bearer ${token}` },
@@ -59,28 +65,96 @@ const StaffDashboard = () => {
         const relevantPlans = allPlans.filter(
           plan => plan.faculty === profileData.faculty || plan.department === profileData.department
         );
-        // Sort by created_at/CreatedAt descending
+        // Sort by created_at/CreatedAt/date descending
         relevantPlans.sort((a, b) => {
-          const dateA = new Date(a.created_at || a.CreatedAt || 0).getTime();
-          const dateB = new Date(b.created_at || b.CreatedAt || 0).getTime();
+          const dateA = new Date(a.created_at || a.CreatedAt || a.date || a.Date || 0).getTime();
+          const dateB = new Date(b.created_at || b.CreatedAt || b.date || b.Date || 0).getTime();
           return dateB - dateA;
         });
         setSeatingPlans(relevantPlans.slice(0, 5));
         setPlansLoading(false);
-        // 3. Filter invigilator duties (where staff is invigilator)
-        const duties = allPlans.filter(
-          plan => plan.invigilator_email === profileData.email
-        );
-        setInvigilatorDuties(duties);
-        setDutiesLoading(false);
-        // 4. Fetch all exams for plan details
+        // 3. Fetch all exams for plan details FIRST
         const examsRes = await fetch("http://localhost:8080/api/seating/exams", {
           headers: { Authorization: `Bearer ${token}` },
         });
+        let allExams = [];
         if (examsRes.ok) {
-          const examsData = await examsRes.json();
-          setExams(Array.isArray(examsData) ? examsData : []);
+          allExams = await examsRes.json();
+          setExams(Array.isArray(allExams) ? allExams : []);
         }
+        
+        // 4. Filter invigilator duties (where staff is invigilator)
+        // Now: match staff user ID against room.invigilators (array of user IDs)
+        let duties = [];
+        let staffId = undefined;
+        try {
+          const user = JSON.parse(localStorage.getItem("user") || "{}");
+          staffId = user._id || user.id;
+        } catch {
+          staffId = undefined;
+        }
+        console.log("[DEBUG] staffId (from localStorage):", staffId);
+        console.log("[DEBUG] allExams for matching:", allExams);
+        
+        allPlans.forEach(plan => {
+          const rooms = plan.rooms || plan.Rooms || [];
+          rooms.forEach(room => {
+            console.log("[DEBUG] Checking room.invigilators:", room.invigilators, "for staffId:", staffId);
+            if (Array.isArray(room.invigilators) && staffId && room.invigilators.includes(staffId)) {
+              // Find exam for this plan - try multiple matching strategies
+              const planExamId = plan.exam_id || plan.ExamID;
+              console.log("[DEBUG] Looking for exam with ID:", planExamId);
+              
+              let examObj = allExams.find(e => (e._id || e.ID)?.toString() === planExamId?.toString());
+              if (!examObj) {
+                // Try matching any field value
+                examObj = allExams.find(e => Object.values(e).map(v => v?.toString()).includes(planExamId?.toString()));
+              }
+              console.log("[DEBUG] Found exam object:", examObj);
+              
+              const examTitle = examObj?.title || examObj?.Title || plan.exam_title || plan.ExamTitle || plan.examId || plan.ExamID || "Exam Title";
+              let examDate = examObj?.date || examObj?.Date;
+              if (examDate) {
+                try { 
+                  const d = new Date(examDate);
+                  if (!isNaN(d.getTime())) {
+                    examDate = d.toLocaleString();
+                  } else {
+                    examDate = examDate.toString();
+                  }
+                } catch {
+                  examDate = examDate.toString();
+                }
+              }
+              
+              duties.push({
+                exam_title: examTitle,
+                room_name: room.name || room.room_name || room.RoomName || room.Room || "Room",
+                exam_date: examDate || "",
+              });
+            }
+          });
+        });
+        console.log("[DEBUG] duties found:", duties);
+        
+        // Sort invigilator duties by exam date descending (newest first)
+        const sortedDuties = [...duties].sort((a, b) => {
+          const getTime = (obj) => {
+            if (obj.exam_date) {
+              try {
+                const d = new Date(obj.exam_date);
+                if (!isNaN(d.getTime())) {
+                  return d.getTime();
+                }
+              } catch {}
+            }
+            return 0;
+          };
+          return getTime(b) - getTime(a);
+        });
+        
+        setInvigilatorDuties(sortedDuties);
+        setDutiesLoading(false);
       } catch (err) {
         setPlansError(err.message || "Failed to fetch seating plans");
         setDutiesError(err.message || "Failed to fetch invigilator duties");
@@ -220,18 +294,36 @@ const StaffDashboard = () => {
           <h2 className="text-xl font-semibold mb-4">Recent Seating Plans</h2>
               {!Array.isArray(seatingPlans) || seatingPlans.length === 0 ? (
                 <div>No seating plans found.</div>
+              ) : exams.length === 0 ? (
+                <div>Loading exam details...</div>
               ) : (
                 seatingPlans.map((plan, index) => {
                   // Support both plan.rooms and plan.Rooms
                   const rooms = plan.rooms || plan.Rooms || [];
-                  // Find exam for this plan
-                  const examObj = exams.find(e => (e._id || e.ID)?.toString() === (plan.exam_id || plan.ExamID)?.toString());
+                  // Find exam for this plan - try multiple matching strategies
+                  const planExamId = plan.exam_id || plan.ExamID;
+                  console.log("[DEBUG] Recent plans - Looking for exam with ID:", planExamId);
+                  
+                  let examObj = exams.find(e => (e._id || e.ID)?.toString() === planExamId?.toString());
+                  if (!examObj) {
+                    // Try matching any field value
+                    examObj = exams.find(e => Object.values(e).map(v => v?.toString()).includes(planExamId?.toString()));
+                  }
+                  console.log("[DEBUG] Recent plans - Found exam object:", examObj);
+                  
                   const examTitle = examObj?.title || examObj?.Title || plan.exam_title || plan.ExamTitle || plan.examId || plan.ExamID || "Exam Title";
                   let examDate = examObj?.date || examObj?.Date;
                   if (examDate) {
                     try {
-                      examDate = new Date(examDate).toLocaleDateString(); // Only date
-                    } catch {}
+                      const d = new Date(examDate);
+                      if (!isNaN(d.getTime())) {
+                        examDate = d.toLocaleString(); // Date and time
+                      } else {
+                        examDate = examDate.toString();
+                      }
+                    } catch {
+                      examDate = examDate.toString();
+                    }
                   }
                   const planDate = plan.created_at || plan.CreatedAt;
                   let planDateStr = planDate ? new Date(planDate).toLocaleDateString() : "";
@@ -263,6 +355,8 @@ const StaffDashboard = () => {
             <div>Loading invigilator duties...</div>
           ) : dutiesError ? (
             <div className="text-red-500">{dutiesError}</div>
+          ) : exams.length === 0 ? (
+            <div>Loading exam details...</div>
           ) : invigilatorDuties.length === 0 ? (
             <div>No invigilator duties to display.</div>
           ) : (

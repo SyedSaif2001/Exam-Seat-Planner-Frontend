@@ -30,16 +30,14 @@ const Sidebar = () => {
 
       {/* Navigation Links */}
       <nav className="flex flex-col gap-4 flex-grow">
-        {/* Dashboard link: route depends on current dashboard */}
-        <SidebarItem
-          to={isStudentDashboard ? "/student-dashboard" : role === "staff" ? "/staff-dashboard" : "/dashboard"}
-          icon={<LayoutDashboard size={20} />}
-          text="Dashboard"
-        />
-        
         {/* Admin Navigation */}
         {role === "admin" && (
           <>
+            <SidebarItem
+              to="/dashboard"
+              icon={<LayoutDashboard size={20} />}
+              text="Dashboard"
+            />
             <SidebarItem
               to="/manage-exams"
               icon={<ClipboardList size={20} />}
@@ -66,6 +64,11 @@ const Sidebar = () => {
         {/* Staff Navigation */}
         {role === "staff" && (
           <>
+            <SidebarItem
+              to="/staff-dashboard"
+              icon={<LayoutDashboard size={20} />}
+              text="Dashboard"
+            />
             <SidebarItem
               to="/upload-student-list"
               icon={<Upload size={20} />}

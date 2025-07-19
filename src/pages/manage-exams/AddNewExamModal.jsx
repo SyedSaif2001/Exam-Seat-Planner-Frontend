@@ -53,7 +53,7 @@ const StudentListModal = ({ open, onClose, studentLists, onSelect, selected }) =
 };
 
 // Modal for selecting invigilator
-const InvigilatorModal = ({ open, onClose, invigilators, onSelect, selected, assignedInvigilators = [] }) => {
+const InvigilatorModal = ({ open, onClose, invigilators, onSelect, selected = [], assignedInvigilators = [] }) => {
   const [search, setSearch] = React.useState("");
   if (!open) return null;
   // Only show admin and staff
@@ -71,7 +71,7 @@ const InvigilatorModal = ({ open, onClose, invigilators, onSelect, selected, ass
         >
           <X className="w-6 h-6" />
         </button>
-        <h3 className="text-lg font-semibold mb-4">Select Invigilator</h3>
+        <h3 className="text-lg font-semibold mb-4">Select Invigilators</h3>
         <input
           type="text"
           className="w-full border rounded px-3 py-2 mb-3"
@@ -88,16 +88,24 @@ const InvigilatorModal = ({ open, onClose, invigilators, onSelect, selected, ass
               return (
                 <div
                   key={inv._id}
-                  className={`p-2 rounded cursor-pointer hover:bg-blue-100 ${selected === inv._id ? "bg-blue-200" : ""} ${isAssigned ? "opacity-50 bg-gray-100" : ""}`}
-                  onClick={() => !isAssigned && onSelect(inv._id)}
+                  className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-blue-100 ${isAssigned ? "opacity-50 bg-gray-100" : ""}`}
                   title={isAssigned ? "Already assigned to another room" : ""}
                 >
+                  <input
+                    type="checkbox"
+                    disabled={isAssigned}
+                    checked={Array.isArray(selected) && selected.includes(inv._id)}
+                    onChange={() => !isAssigned && onSelect(inv._id)}
+                  />
                   <span className="font-medium">{inv.name}</span> <span className="text-xs text-gray-500">({inv.email})</span> <span className="text-xs text-gray-400">[{inv.role}]</span>
                   {isAssigned && <span className="text-xs text-red-500 ml-2">(Assigned)</span>}
                 </div>
               );
             })
           )}
+        </div>
+        <div className="mt-4 flex justify-end">
+          <button onClick={onClose} className="bg-blue-600 text-white px-4 py-2 rounded-md">Done</button>
         </div>
       </div>
     </div>
@@ -177,29 +185,28 @@ const AddNewExamModal = ({ setIsModalOpen }) => {
   // Handle invigilator assignment per room
   const handleInvigilatorSelect = (roomIndex, invigilatorId) => {
     if (!invigilatorId) return;
-    
-    // Check if this invigilator is already assigned to another room in this exam
-    const isAlreadyAssigned = selectedRooms.some((room, idx) => 
-      idx !== roomIndex && 
-      room.invigilators && 
+    const updated = [...selectedRooms];
+    if (!updated[roomIndex].invigilators) {
+      updated[roomIndex].invigilators = [];
+    }
+    // If already selected, remove; else, add (but only if not assigned elsewhere)
+    const isAlreadyAssigned = selectedRooms.some((room, idx) =>
+      idx !== roomIndex &&
+      room.invigilators &&
       room.invigilators.includes(invigilatorId)
     );
-    
     if (isAlreadyAssigned) {
       const invigilator = invigilators.find(inv => inv._id === invigilatorId);
       const invigilatorName = invigilator ? invigilator.name : invigilatorId;
       setError(`Invigilator "${invigilatorName}" is already assigned to another room in this exam. Each invigilator can only be assigned to one room per exam.`);
       return;
     }
-    
-    const updated = [...selectedRooms];
-    if (!updated[roomIndex].invigilators) {
-      updated[roomIndex].invigilators = [];
+    if (updated[roomIndex].invigilators.includes(invigilatorId)) {
+      updated[roomIndex].invigilators = updated[roomIndex].invigilators.filter(id => id !== invigilatorId);
+    } else {
+      updated[roomIndex].invigilators.push(invigilatorId);
     }
-    // Replace existing invigilators with the new one (single invigilator per room)
-    updated[roomIndex].invigilators = [invigilatorId];
     setSelectedRooms(updated);
-    setInvigilatorModal({ open: false, roomIndex: null });
   };
 
   useEffect(() => {
@@ -655,11 +662,11 @@ const AddNewExamModal = ({ setIsModalOpen }) => {
                   required
                 >
                   <option value="parallel">Parallel (Column by Column)</option>
-                  <option value="random">Random (Random Arrangement)</option>
-                  <option value="snake">Snake (Serpentine Row-by-Row)</option>
+                  <option value="simple">Simple Fill (Row-wise, No Constraints)</option>
+                  <option value="separated">No Adjacent Same Department</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Parallel: Students arranged by columns | Random: Students arranged randomly | Snake: Students arranged in a serpentine (left-to-right, right-to-left) row pattern
+                  Parallel: Students arranged by columns | Simple Fill: Row-wise, no constraints | No Adjacent Same Department: Leaves seats empty if only adjacent-department students are available
                 </p>
               </div>
             </div>
@@ -755,7 +762,7 @@ const AddNewExamModal = ({ setIsModalOpen }) => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               <button onClick={() => setInvigilatorModal({ open: true, roomIndex: index })} className="text-blue-600 hover:text-blue-800">
-                                {getInvigilatorNames(sel.invigilators) || "Add Invigilator"}
+                                {getInvigilatorNames(sel.invigilators) || "Add Invigilator(s)"}
                               </button>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -807,14 +814,14 @@ const AddNewExamModal = ({ setIsModalOpen }) => {
               onSelect={id => handleStudentListSelect(studentListModal.roomIndex, id)}
               selected={selectedRooms[studentListModal.roomIndex]?.studentListIds || []}
             />
-                    <InvigilatorModal
-          open={invigilatorModal.open}
-          onClose={() => setInvigilatorModal({ open: false, roomIndex: null })}
-          invigilators={invigilators || []}
-          onSelect={id => handleInvigilatorSelect(invigilatorModal.roomIndex, id)}
-          selected={selectedRooms[invigilatorModal.roomIndex]?.invigilators?.[0]}
-          assignedInvigilators={selectedRooms.flatMap(room => room.invigilators || [])}
-        />
+            <InvigilatorModal
+              open={invigilatorModal.open}
+              onClose={() => setInvigilatorModal({ open: false, roomIndex: null })}
+              invigilators={invigilators || []}
+              onSelect={id => handleInvigilatorSelect(invigilatorModal.roomIndex, id)}
+              selected={selectedRooms[invigilatorModal.roomIndex]?.invigilators || []}
+              assignedInvigilators={selectedRooms.flatMap((room, idx) => idx !== invigilatorModal.roomIndex ? (room.invigilators || []) : [])}
+            />
           </div>
         )}
       </div>
