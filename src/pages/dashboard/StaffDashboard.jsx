@@ -176,14 +176,17 @@ const StaffDashboard = () => {
       rooms.forEach(room => {
         (room.student_lists || []).forEach(list => {
           (list.students || []).forEach(s => {
-            if (s.student_id) map[String(s.student_id)] = s;
-            if (s.cms_id) map[String(s.cms_id)] = s;
-            if (!s.department && list.department) s.department = list.department;
-            if (!s.batch && list.batch) s.batch = list.batch;
+            const studentWithDept = {
+              ...s,
+              department: s.department || list.department || "",
+              batch: s.batch || list.batch || "",
+            };
+            if (studentWithDept.student_id) map[String(studentWithDept.student_id)] = studentWithDept;
+            if (studentWithDept.StudentID) map[String(studentWithDept.StudentID)] = studentWithDept;
+            if (studentWithDept.cms_id) map[String(studentWithDept.cms_id)] = studentWithDept;
           });
         });
       });
-
       setStudentMap(map);
       setViewModal({ open: true, plan, examTitle, examDate });
     } catch {
@@ -202,7 +205,7 @@ const StaffDashboard = () => {
     }
 
     try {
-      const planRes = await fetch(`http://localhost:8080/api/seating/plans/${plan._id || plan.ID}`, {
+      const planRes = await fetch(`http://localhost:8080/api/seating/plans/${plan._id || plan.ID}` , {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!planRes.ok) throw new Error("Plan fetch failed");
@@ -213,39 +216,30 @@ const StaffDashboard = () => {
       });
       const roomData = roomRes.ok ? await roomRes.json() : [];
 
+      // Build studentMap directly from planData.rooms (like admin dashboard)
       const map = {};
-      let foundLists = false;
-
       (planData.rooms || []).forEach(room => {
         (room.student_lists || []).forEach(list => {
-          foundLists = true;
           (list.students || []).forEach(s => {
-            if (s.student_id) map[String(s.student_id)] = s;
-            if (s.cms_id) map[String(s.cms_id)] = s;
-            if (!s.department && list.department) s.department = list.department;
-            if (!s.batch && list.batch) s.batch = list.batch;
+            const studentWithDept = {
+              ...s,
+              department: s.department || list.department || "",
+              batch: s.batch || list.batch || "",
+            };
+            if (studentWithDept.student_id) map[String(studentWithDept.student_id)] = studentWithDept;
+            if (studentWithDept.StudentID) map[String(studentWithDept.StudentID)] = studentWithDept;
+            if (studentWithDept.cms_id) map[String(studentWithDept.cms_id)] = studentWithDept;
           });
         });
       });
-
-      if (!foundLists) {
-        const listsRes = await fetch(`http://localhost:8080/api/seating/exams/${examId}/student-lists`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const lists = listsRes.ok ? await listsRes.json() : [];
-        lists.forEach(list => {
-          (list.students || []).forEach(s => {
-            if (s.student_id) map[String(s.student_id)] = s;
-            if (s.cms_id) map[String(s.cms_id)] = s;
-            if (!s.department && list.department) s.department = list.department;
-            if (!s.batch && list.batch) s.batch = list.batch;
-          });
-        });
-      }
-
+      // Debug log
+      console.log('[DEBUG] Built studentMap:', map);
+      console.log('[DEBUG] planData.rooms:', planData.rooms);
+      console.log('[DEBUG] roomData:', roomData);
       setStudentMap(map);
-      setRoomMap({ open: true, plan, seating: planData.rooms || [], rooms: roomData });
+      setTimeout(() => {
+        setRoomMap({ open: true, plan, seating: planData.rooms || [], rooms: roomData });
+      }, 0);
 
     } catch {
       alert("Failed to load map.");
@@ -369,7 +363,7 @@ const StaffDashboard = () => {
         />
       )}
 
-      {roomMap.open && (
+      {roomMap.open && Object.keys(studentMap).length > 0 && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto relative">
             <button

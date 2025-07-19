@@ -119,7 +119,7 @@ const AddNewExamModal = ({ setIsModalOpen }) => {
     date: "",
     duration: "",
     faculty: "",
-    algorithm: "matrix", // Default algorithm
+    algorithm: "parallel", // Default algorithm
   });
   const [rooms, setRooms] = useState([]);
   const [studentLists, setStudentLists] = useState([]);

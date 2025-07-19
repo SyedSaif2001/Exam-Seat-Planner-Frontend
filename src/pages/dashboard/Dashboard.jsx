@@ -141,21 +141,26 @@ const DashboardPage = () => {
     setPlanLoading(true);
 
     try {
-      const res = await fetch(
-        `http://localhost:8080/api/seating/exams/${examId}/rooms`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+      const planRes = await fetch(
+        `http://localhost:8080/api/seating/plans/${plan._id || plan.ID}`,
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (!res.ok) throw new Error("Could not fetch plan details");
+      if (!planRes.ok) throw new Error("Plan fetch failed");
+      const planData = await planRes.json();
 
-      const rooms = await res.json();
+      // Build studentMap from student_lists in planData.rooms (like seat map)
       const studentMap = {};
-
-      rooms.forEach((room) => {
-        (room.student_lists || []).forEach((list) => {
-          (list.students || []).forEach((s) => {
-            studentMap[s.student_id] = s;
+      (planData.rooms || []).forEach(room => {
+        (room.student_lists || []).forEach(list => {
+          (list.students || []).forEach(s => {
+            const studentWithDept = {
+              ...s,
+              department: s.department || list.department || "",
+              batch: s.batch || list.batch || "",
+            };
+            if (studentWithDept.student_id) studentMap[String(studentWithDept.student_id)] = studentWithDept;
+            if (studentWithDept.StudentID) studentMap[String(studentWithDept.StudentID)] = studentWithDept;
+            if (studentWithDept.cms_id) studentMap[String(studentWithDept.cms_id)] = studentWithDept;
           });
         });
       });
@@ -166,7 +171,7 @@ const DashboardPage = () => {
       setStudentsMap(studentMap);
       setViewModal({
         isOpen: true,
-        plan,
+        plan: planData,
         examTitle: exam?.title || exam?.Title || "Exam",
         examDate: exam?.date || exam?.Date || "",
       });
@@ -188,6 +193,7 @@ const DashboardPage = () => {
         `http://localhost:8080/api/seating/plans/${plan._id || plan.ID}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      if (!planRes.ok) throw new Error("Plan fetch failed");
       const planData = await planRes.json();
 
       const roomsRes = await fetch(
@@ -196,17 +202,23 @@ const DashboardPage = () => {
       );
       const roomsData = await roomsRes.json();
 
+      // Build studentMap from student_lists in planData.rooms (like staff dashboard)
       const studentMap = {};
-      (planData.rooms || []).forEach((room) => {
-        (room.student_lists || []).forEach((list) => {
-          (list.students || []).forEach((s) => {
-            studentMap[s.student_id] = s;
+      (planData.rooms || []).forEach(room => {
+        (room.student_lists || []).forEach(list => {
+          (list.students || []).forEach(s => {
+            const studentWithDept = {
+              ...s,
+              department: s.department || list.department || "",
+              batch: s.batch || list.batch || "",
+            };
+            if (studentWithDept.student_id) studentMap[String(studentWithDept.student_id)] = studentWithDept;
+            if (studentWithDept.StudentID) studentMap[String(studentWithDept.StudentID)] = studentWithDept;
+            if (studentWithDept.cms_id) studentMap[String(studentWithDept.cms_id)] = studentWithDept;
           });
         });
       });
-
       setStudentsMap(studentMap);
-
       setViewMap({
         isOpen: true,
         plan,

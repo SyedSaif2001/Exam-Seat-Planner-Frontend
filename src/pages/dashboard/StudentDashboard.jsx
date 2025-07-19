@@ -51,6 +51,24 @@ const StudentDashboard = () => {
         const myExams = [];
         const cmsId = profile.cms_id || profile.cmsID || profile.CMSID;
         const mongoId = profile._id;
+        // Build a studentMap for the student's seats, assigning department and batch from the list if missing
+        const studentMap = {};
+        for (const plan of allPlans) {
+          const rooms = plan.rooms || plan.Rooms || [];
+          for (const room of rooms) {
+            (room.student_lists || []).forEach(list => {
+              (list.students || []).forEach(s => {
+                const studentWithDept = {
+                  ...s,
+                  department: s.department || list.department || "",
+                  batch: s.batch || list.batch || "",
+                };
+                if (studentWithDept.student_id) studentMap[String(studentWithDept.student_id)] = studentWithDept;
+                if (studentWithDept.cms_id) studentMap[String(studentWithDept.cms_id)] = studentWithDept;
+              });
+            });
+          }
+        }
         for (const plan of allPlans) {
           const rooms = plan.rooms || plan.Rooms || [];
           for (const room of rooms) {
@@ -102,6 +120,8 @@ const StudentDashboard = () => {
         }
         setStudentExams(myExams);
         setLoading(false);
+        // Optionally, if you use SeatingPlanVisualizer for students, pass studentMap as prop
+        // setStudentMap(studentMap);
       } catch (err) {
         setError(err.message || "Failed to fetch exam schedule");
         setLoading(false);

@@ -24,7 +24,9 @@ const SeatingPlanVisualizer = ({ seatingPlan = [], roomData = [], studentMap = {
         const student = studentMap[String(seat.student_id || seat.StudentID)];
         const department = student?.department || seat.department || room.department || '';
         const batch = student?.batch || seat.batch || room.batch || '';
-        const deptBatch = `${department}/${batch}`;
+        // Debug log for mapping
+        console.log('Legend build:', { seat, student, department, batch, studentMap });
+        const deptBatch = (department && batch) ? `${department}/${batch}` : 'Unknown';
         set.add(deptBatch);
       });
     });
@@ -81,7 +83,7 @@ const SeatingPlanVisualizer = ({ seatingPlan = [], roomData = [], studentMap = {
                   // Use fallback for dept/batch
                   const department = student?.department || seat?.department || room.department || '';
                   const batch = student?.batch || seat?.batch || room.batch || '';
-                  const deptBatch = `${department}/${batch}`;
+                  const deptBatch = (department && batch) ? `${department}/${batch}` : 'Unknown';
                   const color = getColor(deptBatch);
                   return (
                     <div
