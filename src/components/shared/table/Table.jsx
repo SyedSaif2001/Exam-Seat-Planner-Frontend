@@ -15,15 +15,26 @@ const Table = ({ columns, data }) => {
           </tr>
         </thead>
         <tbody>
-          {data.map((row, rowIndex) => (
-            <tr key={rowIndex} className="border-b hover:bg-gray-50">
-              {columns.map((col) => (
-                <td key={col.key} className="px-4 py-3">
-                  {col.render ? col.render(row) : row[col.key]}
-                </td>
-              ))}
+          {Array.isArray(data) && data.length > 0 ? (
+            data.map((row, rowIndex) => (
+              <tr key={rowIndex} className="border-b hover:bg-gray-50">
+                {columns.map((col) => (
+                  <td key={col.key} className="px-4 py-3">
+                    {col.render ? col.render(row) : row[col.key]}
+                  </td>
+                ))}
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td
+                colSpan={columns.length}
+                className="text-center py-6 text-gray-400"
+              >
+                No data found.
+              </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
     </div>

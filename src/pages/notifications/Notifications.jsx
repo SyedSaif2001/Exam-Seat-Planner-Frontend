@@ -1,54 +1,166 @@
-import React from "react";
-import { UserCircle, Bell } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Plus, Trash2, Eye, CheckCircle } from "lucide-react";
+import Table from "../../components/shared/table/Table";
+import NotificationModal from "../../components/NotificationModal";
+import NotificationModalTwo from "../../components/NotificationModalTwo";
 
-const NotificationPage = () => {
-  const emailLogs = [
-    { id: 1, title: "Email No. 1", date: "01/01/2025 19:50" },
-    { id: 2, title: "Email No. 2", date: "04/01/2025 2:15" },
-    { id: 3, title: "Email No. 2", date: "05/01/2025 13:30" },
+const Notifications = () => {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewModal, setViewModal] = useState({
+    open: false,
+    notification: null,
+  });
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("http://localhost:8080/api/notifications", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Failed to fetch notifications");
+        const data = await res.json();
+        // Sort newest first by created_at, CreatedAt, or _id/ID
+        const sorted = [...data].sort((a, b) => {
+          const dateA = new Date(a.created_at || a.CreatedAt || a._id || a.ID);
+          const dateB = new Date(b.created_at || b.CreatedAt || b._id || b.ID);
+          return dateB - dateA;
+        });
+        setNotifications(sorted);
+      } catch (err) {
+        setError(err.message || "Failed to load notifications");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNotifications();
+  }, [isModalOpen]);
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this notification?")) return;
+    setLoading(true);
+    setError("");
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:8080/api/notifications/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to delete notification");
+      setSuccess("Notification deleted!");
+      setNotifications(
+        notifications.filter((n) => n._id !== id && n.ID !== id)
+      );
+      setTimeout(() => setSuccess(""), 1500);
+    } catch (err) {
+      setError(err.message || "Failed to delete notification");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const columns = [
+    {
+      key: "send_time",
+      label: "Send Time",
+      render: (row) =>
+        new Date(row.send_time || row.SendTime).toLocaleString("en-US", {
+          timeZone: "UTC",
+        }),
+    },
+    {
+      key: "roles",
+      label: "Sent To",
+      render: (row) =>
+        Array.isArray(row.roles)
+          ? row.roles.join(", ")
+          : Array.isArray(row.Roles)
+          ? row.Roles.join(", ")
+          : row.roles || row.Roles || "-",
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (row) => (
+        <span
+          className={
+            (row.status || row.Status) === "sent"
+              ? "text-green-600"
+              : "text-yellow-600"
+          }
+        >
+          {row.status || row.Status || "-"}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      render: (row) => (
+        <div className="flex gap-2">
+          <button
+            onClick={() => setViewModal({ open: true, notification: row })}
+            className="text-blue-600 hover:text-blue-800"
+            title="View"
+          >
+            <Eye size={18} />
+          </button>
+          <button
+            onClick={() => handleDelete(row._id || row.ID)}
+            className="text-red-600 hover:text-red-800"
+            title="Delete"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
+      ),
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Notification</h1>
-          <button className="bg-orange-500 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-            <UserCircle className="w-6 h-6" />
-            Admin
-          </button>
-        </div>
-
-        {/* Email Logs */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Recent Email Logs</h2>
-          {emailLogs.map((email) => (
-            <div
-              key={email.id}
-              className="flex justify-between py-4 border-b last:border-b-0"
-            >
-              <div>
-                <h3 className="text-lg font-medium">{email.title}</h3>
-                <p className="text-gray-500">{email.date}</p>
-              </div>
-              <button className="text-blue-500 hover:underline">
-                View Details
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* Floating Action Button */}
-        <div className="fixed bottom-6 right-6">
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg">
-            <Bell className="w-5 h-5" />
-            Draft new Notification
-          </button>
-        </div>
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Notification Management</h1>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+        >
+          <Plus className="w-5 h-5" /> Schedule Notification
+        </button>
       </div>
+      {error && <div className="text-red-500 mb-4">{error}</div>}
+      {success && (
+        <div className="flex items-center p-4 bg-green-50 border border-green-200 rounded-md mb-4">
+          <CheckCircle className="w-5 h-5 text-green-400 mr-2" />{" "}
+          <span className="text-green-700">{success}</span>
+        </div>
+      )}
+      {loading ? (
+        <div>Loading notifications...</div>
+      ) : (
+        <div className="border rounded-lg overflow-hidden bg-white">
+          <Table columns={columns} data={notifications} />
+        </div>
+      )}
+      {/* Schedule Notification Modal */}
+      {isModalOpen && (
+        <NotificationModal onClose={() => setIsModalOpen(false)} />
+      )}
+      {/* View Notification Modal */}
+      {viewModal.open && (
+        <NotificationModalTwo
+          onClose={() => setViewModal({ open: false, notification: null })}
+          email={viewModal.notification}
+        />
+      )}
     </div>
   );
 };
 
-export default NotificationPage;
+export default Notifications;
