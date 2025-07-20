@@ -6,7 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [cmsId, setCmsId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,7 @@ const LoginPage = () => {
       const res = await fetch("http://localhost:8080/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier: email, password }),
+        body: JSON.stringify({ identifier: cmsId, password }),
       });
       if (!res.ok) throw new Error("Invalid credentials");
       const data = await res.json();
@@ -46,39 +46,55 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="w-full flex justify-center">
-      <Container className="py-[35px] px-[30px]">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <InputText
-            label="Email"
-            placeholder="Enter your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            error={error}
+    <div className="w-full flex justify-center items-center min-h-screen bg-gray-300">
+      <Container className="py-8 px-8 max-w-md">
+        <div className="flex flex-col items-center mb-0">
+          <img 
+            src="/public/assets/esp-logo.png" 
+            alt="Exam Seat Plan Logo" 
+            className="h-24 mb-16" 
           />
-          <InputPasswordField
-            label="Password"
-            placeholder="Enter your password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            error={error}
-          />
-          <button type="submit" className="bg-blue-500 text-white py-2 rounded-lg w-full" disabled={loading}>
-            {loading ? "Logging In..." : "Login"}
-          </button>
-          {error && <div className="text-red-500 text-center">{error}</div>}
-        </form>
-        <div className="flex justify-end mt-2">
-          <Link to="/forgot-password" className="text-sm text-blue-500 hover:underline">Forgot password?</Link>
         </div>
-        <div className="flex justify-center gap-2 mt-4">
-          <p className="">Don't have an account?</p>
-          <Link
-            to="/sign-up"
-            className="text-blue-500 underline underline-offset-2"
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">CMS ID</label>
+            <InputText
+              placeholder="Enter your CMS ID"
+              value={cmsId}
+              onChange={(e) => setCmsId(e.target.value)}
+              error={error}
+              className="w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <InputPasswordField
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              error={error}
+              className="w-full"
+            />
+          </div>
+          <button 
+            type="submit" 
+            className="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md w-full font-medium transition-colors" 
+            disabled={loading}
           >
-            Sign up
-          </Link>
+            {loading ? "Signing In..." : "Sign In"}
+          </button>
+          {error && <div className="text-red-500 text-center text-sm">{error}</div>}
+        </form>
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
+            Don't have any account?{" "}
+            <Link
+              to="/sign-up"
+              className="text-blue-600 hover:underline"
+            >
+              Sign Up
+            </Link>
+          </p>
         </div>
       </Container>
     </div>

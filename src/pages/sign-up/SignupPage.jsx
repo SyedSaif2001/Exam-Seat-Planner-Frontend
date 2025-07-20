@@ -31,27 +31,8 @@ const SignupPage = () => {
     setError("");
     setLoading(true);
 
-    // Basic validation
-    if (!formData.password || !formData.confirmPassword) {
-      setError("Please fill in all password fields");
-      setLoading(false);
-      return;
-    }
-
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
-      setLoading(false);
-      return;
-    }
-
-    if (role === "student" && (!formData.cms_id || !formData.name || !formData.email || !formData.faculty || !formData.department || !formData.batch)) {
-      setError("Please fill in all student fields");
-      setLoading(false);
-      return;
-    }
-
-    if ((role === "admin" || role === "staff") && (!formData.name || !formData.email || !formData.faculty || !formData.department)) {
-      setError("Please fill in all admin/staff fields");
       setLoading(false);
       return;
     }
@@ -64,15 +45,17 @@ const SignupPage = () => {
         },
         body: JSON.stringify({
           ...formData,
-        role,
+          role,
         }),
       });
+      
       if (!response.ok) {
         const data = await response.json();
         setError(data.error || "Signup failed");
         setLoading(false);
         return;
       }
+      
       setLoading(false);
       alert("Account created successfully! Please login.");
       window.location.href = "/login";
@@ -83,30 +66,33 @@ const SignupPage = () => {
   };
 
   return (
-    <div className="w-full flex justify-center">
-      <Container className="py-[35px] px-[30px]">
+    <div className="w-full flex justify-center items-center min-h-screen bg-gray-300">
+      <Container className="py-8 px-8 max-w-md">
+        <div className="flex flex-col items-center mb-0">
+          <img 
+            src="/public/assets/esp-logo.png" 
+            alt="Exam Seat Plan Logo" 
+            className="h-24 mb-14"
+          />
+          
+        </div>
+        
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-
-          {/* Role Dropdown */}
+          {/* Role Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sign up as
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Sign Up As</label>
             <select
-              name="role"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Select Role</option>
               <option value="student">Student</option>
               <option value="staff">Staff</option>
               <option value="admin">Admin</option>
             </select>
           </div>
 
-          {/* Name Input */}
+          {/* Name */}
           <InputText
             label="Full Name"
             placeholder="Enter your full name"
@@ -114,26 +100,25 @@ const SignupPage = () => {
             onChange={(e) => handleInputChange("name", e.target.value)}
           />
 
-          {/* CMS ID Input (Student only) */}
-          <div className={role !== "student" ? "opacity-50 pointer-events-none" : ""}>
+          {/* CMS ID (Student only) */}
+          {role === "student" && (
             <InputText
               label="CMS ID"
               placeholder="Enter your CMS ID"
               value={formData.cms_id}
               onChange={(e) => handleInputChange("cms_id", e.target.value)}
-              disabled={role !== "student"}
             />
-          </div>
+          )}
 
-          {/* Email Input */}
-            <InputText
-              label="Email Address"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
+          {/* Email */}
+          <InputText
+            label="Email"
+            placeholder="Enter your email"
+            value={formData.email}
+            onChange={(e) => handleInputChange("email", e.target.value)}
           />
 
-          {/* Faculty Input */}
+          {/* Faculty */}
           <InputText
             label="Faculty"
             placeholder="Enter your faculty"
@@ -141,7 +126,7 @@ const SignupPage = () => {
             onChange={(e) => handleInputChange("faculty", e.target.value)}
           />
 
-          {/* Department Input */}
+          {/* Department */}
           <InputText
             label="Department"
             placeholder="Enter your department"
@@ -149,25 +134,25 @@ const SignupPage = () => {
             onChange={(e) => handleInputChange("department", e.target.value)}
           />
 
-          {/* Batch Input */}
-          <div className={role !== "student" ? "opacity-50 pointer-events-none" : ""}>
+          {/* Batch (Student only) */}
+          {role === "student" && (
             <InputText
               label="Batch"
               placeholder="Enter your batch"
               value={formData.batch}
               onChange={(e) => handleInputChange("batch", e.target.value)}
-              required={role === "student"}
-              style={{ display: role === "student" ? "block" : "none" }}
             />
-          </div>
+          )}
 
-          {/* Password Fields */}
+          {/* Password */}
           <InputPasswordField
             label="Password"
             placeholder="Enter your password"
             value={formData.password}
             onChange={(e) => handleInputChange("password", e.target.value)}
           />
+
+          {/* Confirm Password */}
           <InputPasswordField
             label="Confirm Password"
             placeholder="Confirm your password"
@@ -175,21 +160,22 @@ const SignupPage = () => {
             onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
           />
 
-          {/* Error Message */}
           {error && <div className="text-red-500 text-center text-sm">{error}</div>}
 
-          {/* Submit Button */}
-          <button type="submit" className="bg-blue-500 text-white py-2 rounded-lg w-full" disabled={loading}>
-            {loading ? "Signing Up..." : "Sign Up"}
+          <button 
+            type="submit" 
+            className="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md w-full font-medium transition-colors mt-2"
+            disabled={loading}
+          >
+            {loading ? "Creating Account..." : "Sign Up"}
           </button>
         </form>
 
-        {/* Login Redirect */}
         <div className="flex justify-center gap-2 mt-4">
-          <p>Already have an account?</p>
+          <p className="text-sm text-gray-600">Already have an account?</p>
           <Link
             to="/login"
-            className="text-blue-500 underline underline-offset-2"
+            className="text-blue-600 hover:underline text-sm"
           >
             Login
           </Link>
