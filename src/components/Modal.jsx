@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const Modal = ({ onClose, plan, studentMap, loading, examTitle, examDate }) => {
   useEffect(() => {
@@ -8,14 +10,12 @@ const Modal = ({ onClose, plan, studentMap, loading, examTitle, examDate }) => {
     };
   }, []);
 
-  // Robust normalization for rooms array
   const rooms = Array.isArray(plan?.rooms)
     ? plan.rooms
     : Array.isArray(plan?.Rooms)
       ? plan.Rooms
       : [];
 
-  // If no plan, show nothing
   if (!plan) return null;
 
   if (loading) {
@@ -29,7 +29,6 @@ const Modal = ({ onClose, plan, studentMap, loading, examTitle, examDate }) => {
     );
   }
 
-  // Helper to get student details
   const getStudentDetails = (student_id) => {
     if (!student_id) return null;
     const key = String(student_id);
@@ -37,8 +36,6 @@ const Modal = ({ onClose, plan, studentMap, loading, examTitle, examDate }) => {
     return student;
   };
 
-  // Build a map of invigilator IDs to names if available
-  // Try to extract invigilator names from the room objects if present
   const invigilatorNameMap = {};
   rooms.forEach(room => {
     if (Array.isArray(room.invigilators) && Array.isArray(room.invigilatorDetails)) {
@@ -49,10 +46,24 @@ const Modal = ({ onClose, plan, studentMap, loading, examTitle, examDate }) => {
     }
   });
 
-  // Helper to get invigilator names (if available)
   const getInvigilatorNames = (invigilatorIds = []) => {
     if (!Array.isArray(invigilatorIds) || invigilatorIds.length === 0) return "-";
     return invigilatorIds.map(id => invigilatorNameMap[id] || id).join(", ");
+  };
+
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById('pdf-content');
+    if (!element) return;
+
+    const canvas = await html2canvas(element, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`${examTitle || 'Seating-Plan'}.pdf`);
   };
 
   return (
@@ -66,68 +77,80 @@ const Modal = ({ onClose, plan, studentMap, loading, examTitle, examDate }) => {
           &times;
         </button>
 
-        <h2 className="text-2xl font-semibold text-center mb-2">{examTitle || 'Exam Title'}</h2>
-        <p className="text-sm text-center text-gray-600 mb-4">
-          {examDate ? new Date(examDate).toLocaleString('en-US', { timeZone: 'UTC' }) : ''}
-        </p>
+        {/* Download Button */}
+        <div className="flex justify-start mb-4">
+  <button
+    onClick={handleDownloadPDF}
+    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+  >
+    Download as PDF
+  </button>
+</div>
 
-        <div className="mt-6 space-y-10">
-          {rooms.length === 0 ? (
-            <div className="text-center text-gray-500">No rooms found in this plan.</div>
-          ) : (
-            rooms.map((room, idx) => {
-              // Support both camelCase and PascalCase
-              const seats = room.seats || room.Seats || [];
-              return (
-                <div key={room.room_id || room.RoomID || idx} className="mb-8 border rounded-lg p-4 shadow-sm">
-                  <h3 className="text-xl font-bold mb-1">Room: {room.name || room.Name}</h3>
-                  <div className="text-gray-600 mb-2">
-                    Building: {room.building || room.Building} | Capacity: {room.capacity || room.Capacity} | Rows: {room.rows || room.Rows} | Columns: {room.columns || room.Columns}
+        {/* PDF Content */}
+        <div id="pdf-content">
+          <h2 className="text-2xl font-semibold text-center mb-2">{examTitle || 'Exam Title'}</h2>
+          <p className="text-sm text-center text-gray-600 mb-4">
+            {examDate ? new Date(examDate).toLocaleString('en-US', { timeZone: 'UTC' }) : ''}
+          </p>
+
+          <div className="mt-6 space-y-10">
+            {rooms.length === 0 ? (
+              <div className="text-center text-gray-500">No rooms found in this plan.</div>
+            ) : (
+              rooms.map((room, idx) => {
+                const seats = room.seats || room.Seats || [];
+                return (
+                  <div key={room.room_id || room.RoomID || idx} className="mb-8 border rounded-lg p-4 shadow-sm">
+                    <h3 className="text-xl font-bold mb-1">Room: {room.name || room.Name}</h3>
+                    <div className="text-gray-600 mb-2">
+                      Building: {room.building || room.Building} | Capacity: {room.capacity || room.Capacity} | Rows: {room.rows || room.Rows} | Columns: {room.columns || room.Columns}
+                    </div>
+                    <div className="text-gray-600 mb-2">
+                      Invigilators: {getInvigilatorNames(room.invigilators || room.Invigilators)}
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left border border-gray-300 rounded-md">
+                        <thead className="bg-gray-100 text-gray-700">
+                          <tr>
+                            <th className="px-4 py-2 border">Seat Number</th>
+                            <th className="px-4 py-2 border">Student Name</th>
+                            <th className="px-4 py-2 border">CMS ID</th>
+                            <th className="px-4 py-2 border">Department</th>
+                            <th className="px-4 py-2 border">Batch</th>
+                            <th className="px-4 py-2 border">Row</th>
+                            <th className="px-4 py-2 border">Column</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {seats.length === 0 ? (
+                            <tr><td colSpan={7} className="text-center py-4">No seat assignments found.</td></tr>
+                          ) : (
+                            seats.filter(
+                              seat => (seat.IsEmpty === false || seat.is_empty === false || seat.StudentID || seat.student_id)
+                            ).map((seat, i) => {
+                              const student = getStudentDetails(seat.StudentID ?? seat.student_id);
+                              return (
+                                <tr key={i} className="border-t">
+                                  <td className="px-4 py-2 border">{i + 1}</td>
+                                  <td className="px-4 py-2 border">{student?.name || '-'}</td>
+                                  <td className="px-4 py-2 border">{student?.student_id || '-'}</td>
+                                  <td className="px-4 py-2 border">{student?.department || '-'}</td>
+                                  <td className="px-4 py-2 border">{student?.batch || '-'}</td>
+                                  <td className="px-4 py-2 border">{seat.Row ?? seat.row}</td>
+                                  <td className="px-4 py-2 border">{seat.Column ?? seat.column}</td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                  <div className="text-gray-600 mb-2">
-                    Invigilators: {getInvigilatorNames(room.invigilators || room.Invigilators)}
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left border border-gray-300 rounded-md">
-                      <thead className="bg-gray-100 text-gray-700">
-                        <tr>
-                          <th className="px-4 py-2 border">Seat Number</th>
-                          <th className="px-4 py-2 border">Student Name</th>
-                          <th className="px-4 py-2 border">CMS ID</th>
-                          <th className="px-4 py-2 border">Department</th>
-                          <th className="px-4 py-2 border">Batch</th>
-                          <th className="px-4 py-2 border">Row</th>
-                          <th className="px-4 py-2 border">Column</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {seats.length === 0 ? (
-                          <tr><td colSpan={7} className="text-center py-4">No seat assignments found.</td></tr>
-                        ) : (
-                          seats.filter(
-                            seat => (seat.IsEmpty === false || seat.is_empty === false || seat.StudentID || seat.student_id)
-                          ).map((seat, i) => {
-                            const student = getStudentDetails(seat.StudentID ?? seat.student_id);
-                            return (
-                              <tr key={i} className="border-t">
-                                <td className="px-4 py-2 border">{i + 1}</td>
-                                <td className="px-4 py-2 border">{student?.name || '-'}</td>
-                                <td className="px-4 py-2 border">{student?.student_id || '-'}</td>
-                                <td className="px-4 py-2 border">{student?.department || '-'}</td>
-                                <td className="px-4 py-2 border">{student?.batch || '-'}</td>
-                                <td className="px-4 py-2 border">{seat.Row ?? seat.row}</td>
-                                <td className="px-4 py-2 border">{seat.Column ?? seat.column}</td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              );
-            })
-          )}
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
     </div>
