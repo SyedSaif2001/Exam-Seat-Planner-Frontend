@@ -55,36 +55,49 @@ const LoginPage = () => {
             className="h-24 mb-16" 
           />
         </div>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">CMS ID</label>
-            <InputText
-              placeholder="Enter your CMS ID"
-              value={cmsId}
-              onChange={(e) => setCmsId(e.target.value)}
-              error={error}
-              className="w-full"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <InputPasswordField
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              error={error}
-              className="w-full"
-            />
-          </div>
-          <button 
-            type="submit" 
-            className="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md w-full font-medium transition-colors" 
-            disabled={loading}
-          >
-            {loading ? "Signing In..." : "Sign In"}
-          </button>
-          {error && <div className="text-red-500 text-center text-sm">{error}</div>}
-        </form>
+       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      CMS ID/Email Address
+    </label>
+    <InputText
+      placeholder="Enter your CMS ID"
+      value={cmsId}
+      onChange={(e) => setCmsId(e.target.value)}
+      error={error}
+      className="w-full"
+    />
+  </div>
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      Password
+    </label>
+    <InputPasswordField
+      placeholder="Enter your password"
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+      error={error}
+      className="w-full"
+    />
+    <div className="text-right mt-1">
+      <Link
+        to="/forgot-password"
+        className="text-sm text-blue-600 hover:underline"
+      >
+        Forgot password?
+      </Link>
+    </div>
+  </div>
+  <button
+    type="submit"
+    className="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md w-full font-medium transition-colors"
+    disabled={loading}
+  >
+    {loading ? "Signing In..." : "Sign In"}
+  </button>
+  {error && <div className="text-red-500 text-center text-sm">{error}</div>}
+</form>
+
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             Don't have any account?{" "}
