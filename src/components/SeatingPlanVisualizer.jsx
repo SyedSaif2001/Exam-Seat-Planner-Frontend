@@ -15,6 +15,11 @@ const colorPalette = [
 ];
 
 const SeatingPlanVisualizer = ({ seatingPlan = [], roomData = [], studentMap = {} }) => {
+  // Helper function to convert row/column to seat number (1, 2, 3, 4, etc.)
+  const getSeatNumber = (row, column, totalColumns) => {
+    return ((row - 1) * totalColumns) + column;
+  };
+
   // Build legend: collect all dept/batch from all students assigned to seats in all rooms, using fallbacks
   const legend = useMemo(() => {
     const set = new Set();
@@ -116,7 +121,7 @@ const SeatingPlanVisualizer = ({ seatingPlan = [], roomData = [], studentMap = {
                         transition: 'box-shadow 0.2s',
                       }}
                     >
-                      {student ? `${rowIdx + 1},${colIdx + 1}` : ''}
+                      {student ? getSeatNumber(rowIdx + 1, colIdx + 1, columns) : ''}
                     </div>
                   );
                 })
@@ -131,19 +136,17 @@ const SeatingPlanVisualizer = ({ seatingPlan = [], roomData = [], studentMap = {
         <div className="flex flex-wrap gap-4">
           {legend.map((deptBatch, i) => (
             <div key={deptBatch} className="flex items-center gap-2 text-sm">
-              <span
-                style={{
-                  width: 16,
-                  height: 16,
-                  borderRadius: '50%',
-                  background: colorPalette[i % colorPalette.length],
-                  display: 'inline-block',
-                  border: '1px solid #888',
-                }}
-              ></span>
+              <span style={{ width: 16, height: 16, borderRadius: '50%', background: colorPalette[i % colorPalette.length], display: 'inline-block', border: '1px solid #888' }}></span>
               <span>{deptBatch}</span>
             </div>
           ))}
+        </div>
+        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+          <div className="font-semibold text-sm text-blue-800 mb-1">Seat Numbering System:</div>
+          <div className="text-xs text-blue-700">
+            Seats are numbered using sequential numbers for rows and columns. 
+            For example: Row 1, Column 1 = Seat 1 | Row 2, Column 3 = Seat 5
+          </div>
         </div>
       </div>
     </div>

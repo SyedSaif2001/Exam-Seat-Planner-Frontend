@@ -9,6 +9,64 @@ const StudentDashboard = () => {
   const [studentExams, setStudentExams] = useState([]);
   const [exams, setExams] = useState([]);
 
+  // Helper function to convert row/column to seat number (1, 2, 3, 4, etc.)
+  const getSeatNumber = (row, column, totalColumns) => {
+    return ((row - 1) * totalColumns) + column;
+  };
+
+  // Helper function to get seat display text
+  const getSeatDisplay = (seat, roomColumns = 10) => {
+    const row = seat.row || seat.Row;
+    const column = seat.column || seat.Column;
+    
+    if (!row || !column) {
+      return "Seat number not available";
+    }
+    
+    const seatNumber = getSeatNumber(row, column, roomColumns);
+    return `Seat ${seatNumber} (Row ${row}, Column ${column})`;
+  };
+
+  // Component to render a simple seat map
+  const SeatMap = ({ seat, roomName, roomColumns = 10 }) => {
+    const row = seat.row || seat.Row;
+    const column = seat.column || seat.Column;
+    
+    if (!row || !column) return null;
+    
+    // Create a simple 5x5 grid to show the seat position
+    const gridSize = 5;
+    const seatRow = Math.min(row, gridSize);
+    const seatCol = Math.min(column, gridSize);
+    
+    return (
+      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+        <div className="text-sm font-medium text-gray-700 mb-2">Seat Map for {roomName}</div>
+        <div className="inline-block">
+          <div className="grid grid-cols-5 gap-1">
+            {Array.from({ length: gridSize }, (_, r) =>
+              Array.from({ length: gridSize }, (_, c) => (
+                <div
+                  key={`${r}-${c}`}
+                  className={`w-8 h-8 border border-gray-300 rounded flex items-center justify-center text-xs font-medium ${
+                    r + 1 === seatRow && c + 1 === seatCol
+                      ? 'bg-blue-500 text-white border-blue-600'
+                      : 'bg-white text-gray-400'
+                  }`}
+                >
+                  {r + 1 === seatRow && c + 1 === seatCol ? getSeatNumber(seatRow, seatCol, roomColumns) : ''}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        <div className="text-xs text-gray-500 mt-2">
+          Your seat is highlighted in blue
+        </div>
+      </div>
+    );
+  };
+
   useEffect(() => {
     const fetchStudentSchedule = async () => {
       setLoading(true);
@@ -113,6 +171,7 @@ const StudentDashboard = () => {
                 time: displayTime,
                 seat: mySeat,
                 room: room.name || room.room_name || room.RoomName || room.Room || plan.room_name || plan.roomId,
+                roomColumns: room.columns || room.Columns || room.room?.columns || room.room?.Columns || 10,
                 examDebug: { planExamId, examObj, allExamIds: allExams.map(e => e._id || e.ID || JSON.stringify(e)) }
               });
             }
@@ -150,7 +209,11 @@ const StudentDashboard = () => {
   for (const exam of sortedStudentExams) {
     const key = `${exam.title}__${exam.date}__${exam.time}`;
     if (!grouped[key]) grouped[key] = { ...exam, seats: [] };
-    grouped[key].seats.push({ seat: exam.seat, room: exam.room });
+    grouped[key].seats.push({ 
+      seat: exam.seat, 
+      room: exam.room,
+      roomColumns: exam.roomColumns 
+    });
   }
 
   return (
@@ -182,13 +245,17 @@ const StudentDashboard = () => {
                         {exam.date && !exam.date.startsWith("(No") ? `Exam Date: ${exam.date}` : "No date found"}
                         {exam.time && !exam.time.startsWith("(No") ? ` | Time: ${exam.time}` : ""}
                       </div>
+                      <div className="text-gray-500 text-sm mb-1">
+                        {exam.seats.length === 1 ? `Room: ${exam.seats[0].room}` : ""}
+                      </div>
                       <div className="text-gray-600 text-sm">
                         {exam.seats.length === 1 ? (
-                          <span>Seat: Row {exam.seats[0].seat.row || exam.seats[0].seat.Row}, Col {exam.seats[0].seat.column || exam.seats[0].seat.Column} | Room: {exam.seats[0].room}</span>
+                          <span>{getSeatDisplay(exam.seats[0].seat, exam.seats[0].roomColumns)} | Room: {exam.seats[0].room}</span>
                         ) : (
-                          <span>Seats: {exam.seats.map(s => `Row ${s.seat.row || s.seat.Row}, Col ${s.seat.column || s.seat.Column} (Room: ${s.room})`).join(", ")}</span>
+                          <span>Seats: {exam.seats.map(s => `${getSeatDisplay(s.seat, s.roomColumns)} (Room: ${s.room})`).join(", ")}</span>
                         )}
                       </div>
+                      <SeatMap seat={exam.seats[0].seat} roomName={exam.seats[0].room} roomColumns={exam.seats[0].roomColumns} />
                     </div>
                   </div>
                 ))}

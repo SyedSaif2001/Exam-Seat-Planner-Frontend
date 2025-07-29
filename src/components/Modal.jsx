@@ -10,11 +10,12 @@ const Modal = ({ onClose, plan, studentMap, loading, examTitle, examDate }) => {
     };
   }, []);
 
-  const rooms = Array.isArray(plan?.rooms)
-    ? plan.rooms
-    : Array.isArray(plan?.Rooms)
-      ? plan.Rooms
-      : [];
+  const rooms = plan?.rooms || plan?.Rooms || [];
+
+  // Helper function to convert row/column to seat number (1, 2, 3, 4, etc.)
+  const getSeatNumber = (row, column, totalColumns) => {
+    return ((row - 1) * totalColumns) + column;
+  };
 
   if (!plan) return null;
 
@@ -132,7 +133,7 @@ const Modal = ({ onClose, plan, studentMap, loading, examTitle, examDate }) => {
                               const student = getStudentDetails(seat.StudentID ?? seat.student_id);
                               return (
                                 <tr key={i} className="border-t">
-                                  <td className="px-4 py-2 border">{i + 1}</td>
+                                  <td className="px-4 py-2 border">{getSeatNumber(seat.Row ?? seat.row, seat.Column ?? seat.column, room.columns || room.Columns || 10)}</td>
                                   <td className="px-4 py-2 border">{student?.name || '-'}</td>
                                   <td className="px-4 py-2 border">{student?.student_id || '-'}</td>
                                   <td className="px-4 py-2 border">{student?.department || '-'}</td>
